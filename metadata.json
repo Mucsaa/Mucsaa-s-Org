@@ -1,0 +1,6 @@
+{
+  "name": "Polaris Agenda Interativa",
+  "description": "Agenda inteligente com o companheiro virtual Polaris, que te acompanha durante o dia com lembretes, Modo Foco, motivação e organização.",
+  "requestFramePermissions": ["notifications"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

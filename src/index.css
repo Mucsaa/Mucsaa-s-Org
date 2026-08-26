@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --canvas-bg: #FFFDF9;
+    --canvas-card: #FFFFFF;
+    --canvas-card-warm: #FFF9F2;
+    --border-warm: #EFE8DF;
+    --primary-vibrant: #FF6B35;
+    --primary-vibrant-hover: #F25A24;
+  }
+
+  .dark {
+    --canvas-bg: #141210;
+    --canvas-card: #1D1A16;
+    --canvas-card-warm: #26211C;
+    --border-warm: #2E2822;
+    --primary-vibrant: #FF7A45;
+    --primary-vibrant-hover: #FF8E5E;
+  }
+
+  body {
+    background-color: var(--canvas-bg);
+    color: #1E293B;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  .dark body {
+    color: #F8FAFC;
+  }
+}
+
+/* Custom smooth scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+/* Safe area padding for mobile devices */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
