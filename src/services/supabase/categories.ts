@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
+import { supabase, isSupabaseConfigured, isValidUUID } from '../../lib/supabaseClient';
 import { CategoryConfig, TaskCategory } from '../../types';
 import { CategoryRow, Database } from '../../types/database';
 import { CATEGORIES } from '../../utils/constants';
@@ -19,33 +19,38 @@ export function mapRowToCategory(row: CategoryRow): CategoryConfig {
 export async function fetchUserCategories(userId: string): Promise<CategoryConfig[]> {
   const defaultList = Object.values(CATEGORIES);
 
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() || !isValidUUID(userId)) {
     return defaultList;
   }
 
-  const { data, error } = await (supabase as any)
-    .from('categories')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: true });
+  try {
+    const { data, error } = await (supabase as any)
+      .from('categories')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
 
-  if (error) {
-    console.error('Error fetching categories from Supabase:', error);
+    if (error) {
+      console.warn('Supabase fetchUserCategories note:', error?.message || error);
+      return defaultList;
+    }
+
+    if (!data || data.length === 0) {
+      return defaultList;
+    }
+
+    return (data as CategoryRow[]).map(mapRowToCategory);
+  } catch (err) {
+    console.warn('Supabase fetchUserCategories exception:', err);
     return defaultList;
   }
-
-  if (!data || data.length === 0) {
-    return defaultList;
-  }
-
-  return (data as CategoryRow[]).map(mapRowToCategory);
 }
 
 export async function createCategory(
   userId: string,
   category: CategoryConfig
 ): Promise<CategoryConfig> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() || !isValidUUID(userId)) {
     return category;
   }
 
@@ -61,22 +66,27 @@ export async function createCategory(
     border_light: category.borderLight,
   };
 
-  const { data, error } = await (supabase as any)
-    .from('categories')
-    .insert(payload)
-    .select()
-    .single();
+  try {
+    const { data, error } = await (supabase as any)
+      .from('categories')
+      .insert(payload)
+      .select()
+      .maybeSingle();
 
-  if (error) {
-    console.error('Error creating category in Supabase:', error);
-    throw error;
+    if (error) {
+      console.warn('Supabase createCategory note:', error?.message || error);
+      return category;
+    }
+
+    return data ? mapRowToCategory(data) : category;
+  } catch (err) {
+    console.warn('Supabase createCategory exception:', err);
+    return category;
   }
-
-  return mapRowToCategory(data);
 }
 
 export async function seedDefaultCategories(userId: string): Promise<void> {
-  if (!isSupabaseConfigured()) return;
+  if (!isSupabaseConfigured() || !isValidUUID(userId)) return;
 
   const rows: Database['public']['Tables']['categories']['Insert'][] = Object.values(CATEGORIES).map((cat) => ({
     id: cat.id,
@@ -90,9 +100,14 @@ export async function seedDefaultCategories(userId: string): Promise<void> {
     border_light: cat.borderLight,
   }));
 
-  const { error } = await (supabase as any).from('categories').upsert(rows);
-  if (error) {
-    console.warn('Could not seed default categories into Supabase:', error);
+  try {
+    const { error } = await (supabase as any).from('categories').upsert(rows);
+    if (error) {
+      console.warn('Could not seed default categories into Supabase:', error?.message || error);
+    }
+  } catch (e) {
+    console.warn('Seed default categories exception:', e);
   }
 }
+
 

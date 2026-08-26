@@ -1,6 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { UserProfile } from '../../types';
-import { fetchUserProfile, upsertUserProfile } from './profiles';
 import { fetchCharacterSettings, upsertCharacterSettings } from './character';
 import { seedDefaultCategories } from './categories';
 import { DEFAULT_POLARIS } from '../../utils/rewards';
@@ -41,27 +40,7 @@ export async function signUpWithEmail(
     const userId = data.user.id;
     const userName = name.trim() || email.split('@')[0];
 
-    // Initialize or upsert Profile in Supabase
-    const initialProfile: Partial<UserProfile> & { id: string; email: string; name: string } = {
-      id: userId,
-      name: userName.charAt(0).toUpperCase() + userName.slice(1),
-      email: email.trim().toLowerCase(),
-      streakDays: 1,
-      lastActiveDate: getTodayString(),
-      tasksCompleted: 0,
-      focusMinutes: 0,
-      preferences: DEFAULT_USER.preferences,
-    };
-
-    let profileData: Partial<UserProfile> | null = null;
-    try {
-      profileData = await upsertUserProfile(initialProfile);
-    } catch (e) {
-      console.warn('Profile auto-trigger might have created profile:', e);
-      profileData = await fetchUserProfile(userId);
-    }
-
-    // Initialize Character Settings
+    // Initialize Character Settings in Supabase
     let polarisData = null;
     try {
       polarisData = await upsertCharacterSettings(userId, DEFAULT_POLARIS);
@@ -70,24 +49,31 @@ export async function signUpWithEmail(
       polarisData = await fetchCharacterSettings(userId);
     }
 
-    // Seed default categories
+    // Seed default categories for this user in Supabase
     await seedDefaultCategories(userId);
+
+    // If no session returned immediately from signUp (e.g. auto-confirm enabled), establish session via direct signIn
+    if (!data.session) {
+      const signInRes = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password: password.trim(),
+      });
+      if (signInRes.data?.session) {
+        // Session active immediately
+      }
+    }
 
     const fullProfile: UserProfile = {
       ...DEFAULT_USER,
-      ...(profileData || initialProfile),
       id: userId,
-      name: userName,
+      name: userName.charAt(0).toUpperCase() + userName.slice(1),
       email: email.toLowerCase(),
       polaris: polarisData || DEFAULT_POLARIS,
     };
 
-    const needsEmailConfirmation = !data.session && Boolean(data.user);
-
     return {
       user: fullProfile,
       error: null,
-      needsEmailConfirmation,
     };
   } catch (err: any) {
     return { user: null, error: err?.message || 'Erro inesperado ao registrar.' };
@@ -120,14 +106,13 @@ export async function signInWithEmail(
     }
 
     const userId = data.user.id;
-    const profile = await fetchUserProfile(userId);
     const polaris = await fetchCharacterSettings(userId);
+    const metaName = data.user.user_metadata?.name || email.split('@')[0];
 
     const fullProfile: UserProfile = {
       ...DEFAULT_USER,
-      ...(profile || {}),
       id: userId,
-      name: profile?.name || data.user.user_metadata?.name || email.split('@')[0],
+      name: metaName.charAt(0).toUpperCase() + metaName.slice(1),
       email: data.user.email || email,
       polaris: polaris || DEFAULT_POLARIS,
     };
@@ -159,15 +144,14 @@ export async function getFullCurrentUserData(): Promise<UserProfile | null> {
     }
 
     const userId = session.user.id;
-    const profile = await fetchUserProfile(userId);
     const polaris = await fetchCharacterSettings(userId);
+    const metaName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário';
 
     return {
       ...DEFAULT_USER,
-      ...(profile || {}),
       id: userId,
-      name: profile?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
-      email: session.user.email || profile?.email || '',
+      name: metaName.charAt(0).toUpperCase() + metaName.slice(1),
+      email: session.user.email || '',
       polaris: polaris || DEFAULT_POLARIS,
     };
   } catch (err) {

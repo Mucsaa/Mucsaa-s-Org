@@ -37,17 +37,13 @@ import {
   claimMissionReward,
   performCareAction,
 } from './utils/rewards';
-import { isSupabaseConfigured, supabase } from './lib/supabaseClient';
+import { isSupabaseConfigured, isAuthUser, isValidUUID, supabase } from './lib/supabaseClient';
 import {
   fetchUserTasks,
   createTask,
   updateTask,
   deleteTask,
 } from './services/supabase/tasks';
-import {
-  upsertUserProfile,
-  updateUserStats,
-} from './services/supabase/profiles';
 import { upsertCharacterSettings } from './services/supabase/character';
 import { getFullCurrentUserData, signOutUser } from './services/supabase/auth';
 
@@ -161,9 +157,8 @@ export default function App() {
     saveUserToStorage(user);
     soundManager.setEnabled(user.preferences.soundEffectsEnabled);
 
-    // Sync to Supabase if authenticated
-    if (isSupabaseConfigured() && user.id && !user.id.startsWith('demo-')) {
-      upsertUserProfile(user).catch((e) => console.warn('Supabase profile sync warn:', e));
+    // Sync mascot evolution to Supabase if authenticated
+    if (isAuthUser(user)) {
       if (user.polaris) {
         upsertCharacterSettings(user.id, user.polaris).catch((e) => console.warn('Supabase polaris sync warn:', e));
       }
@@ -177,7 +172,7 @@ export default function App() {
   // Reload tasks if active user ID changes
   const handleUserChange = async (newUser: UserProfile) => {
     setUser(newUser);
-    if (isSupabaseConfigured() && newUser.id && !newUser.id.startsWith('demo-')) {
+    if (isAuthUser(newUser)) {
       try {
         const userTasks = await fetchUserTasks(newUser.id);
         if (userTasks && userTasks.length > 0) {
@@ -285,7 +280,7 @@ export default function App() {
     setTasks(updatedTasks);
 
     // Sync to Supabase
-    if (isSupabaseConfigured() && user.id && !user.id.startsWith('demo-')) {
+    if (isAuthUser(user) && isValidUUID(task.id)) {
       updateTask(task.id, { completed: nextCompleted, completedAt }).catch((e) =>
         console.warn('Supabase task completion sync error:', e)
       );
@@ -421,7 +416,7 @@ export default function App() {
 
   // Create or Update Task
   const handleSaveTask = async (taskData: Partial<Task>) => {
-    const isSupabaseActive = isSupabaseConfigured() && user.id && !user.id.startsWith('demo-');
+    const isSupabaseActive = isAuthUser(user);
 
     if (editingTask) {
       // Update existing
@@ -433,7 +428,7 @@ export default function App() {
         )
       );
 
-      if (isSupabaseActive) {
+      if (isSupabaseActive && isValidUUID(editingTask.id)) {
         try {
           await updateTask(editingTask.id, taskData);
         } catch (err) {
@@ -465,7 +460,7 @@ export default function App() {
       setTasks([newTask, ...tasks]);
       soundManager.playPop();
 
-      if (isSupabaseActive) {
+      if (isSupabaseActive && isValidUUID(user.id)) {
         try {
           const createdRemote = await createTask({
             ...newTask,
@@ -489,7 +484,7 @@ export default function App() {
     setTasks(tasks.filter((t) => t.id !== taskId));
     soundManager.playPop();
 
-    if (isSupabaseConfigured() && user.id && !user.id.startsWith('demo-')) {
+    if (isAuthUser(user) && isValidUUID(taskId)) {
       try {
         await deleteTask(taskId, user.id);
       } catch (err) {
@@ -513,7 +508,7 @@ export default function App() {
     );
     soundManager.playPop();
 
-    if (isSupabaseConfigured() && user.id && !user.id.startsWith('demo-')) {
+    if (isAuthUser(user) && isValidUUID(task.id)) {
       try {
         await updateTask(task.id, { date: newDateStr });
       } catch (err) {

@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
+import { supabase, isSupabaseConfigured, isValidUUID } from '../../lib/supabaseClient';
 import { Task, TaskPriority, TaskCategory, RecurrenceType, TaskReminder } from '../../types';
 import { TaskRow, Database } from '../../types/database';
 
@@ -49,59 +49,71 @@ export function mapTaskToInsertRow(
 }
 
 export async function fetchUserTasks(userId: string): Promise<Task[]> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() || !isValidUUID(userId)) {
     return [];
   }
 
-  const { data, error } = await (supabase as any)
-    .from('tasks')
-    .select('*')
-    .eq('user_id', userId)
-    .order('date', { ascending: true })
-    .order('time', { ascending: true, nullsFirst: false });
+  try {
+    const { data, error } = await (supabase as any)
+      .from('tasks')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: true })
+      .order('time', { ascending: true, nullsFirst: false });
 
-  if (error) {
-    console.error('Error fetching tasks from Supabase:', error);
-    throw error;
+    if (error) {
+      console.warn('Supabase fetchUserTasks note:', error?.message || error);
+      return [];
+    }
+
+    return ((data || []) as TaskRow[]).map(mapRowToTask);
+  } catch (err) {
+    console.warn('Supabase fetchUserTasks exception:', err);
+    return [];
   }
-
-  return ((data || []) as TaskRow[]).map(mapRowToTask);
 }
 
 export async function createTask(
   taskData: Partial<Task> & { userId: string; title: string; date: string }
-): Promise<Task> {
-  if (!isSupabaseConfigured()) {
-    throw new Error('Supabase credentials not configured in environment variables');
+): Promise<Task | null> {
+  if (!isSupabaseConfigured() || !isValidUUID(taskData.userId)) {
+    return null;
   }
 
   const insertData = mapTaskToInsertRow(taskData);
 
-  const { data, error } = await (supabase as any)
-    .from('tasks')
-    .insert(insertData)
-    .select()
-    .single();
+  try {
+    const { data, error } = await (supabase as any)
+      .from('tasks')
+      .insert(insertData)
+      .select()
+      .maybeSingle();
 
-  if (error) {
-    console.error('Error creating task in Supabase:', error);
-    throw error;
+    if (error) {
+      console.warn('Supabase createTask note:', error?.message || error);
+      return null;
+    }
+
+    if (!data) return null;
+
+    const created = mapRowToTask(data as TaskRow);
+
+    // Log history
+    await logTaskHistory(taskData.userId, created.id, 'created', { title: created.title });
+
+    return created;
+  } catch (err) {
+    console.warn('Supabase createTask exception:', err);
+    return null;
   }
-
-  const created = mapRowToTask(data as TaskRow);
-
-  // Log history
-  await logTaskHistory(taskData.userId, created.id, 'created', { title: created.title });
-
-  return created;
 }
 
 export async function updateTask(
   taskId: string,
   updates: Partial<Task>
-): Promise<Task> {
-  if (!isSupabaseConfigured()) {
-    throw new Error('Supabase credentials not configured in environment variables');
+): Promise<Task | null> {
+  if (!isSupabaseConfigured() || !isValidUUID(taskId)) {
+    return null;
   }
 
   const updatePayload: Database['public']['Tables']['tasks']['Update'] = {
@@ -126,50 +138,63 @@ export async function updateTask(
     updatePayload.completed_at = updates.completed ? (updates.completedAt || new Date().toISOString()) : null;
   }
 
-  const { data, error } = await (supabase as any)
-    .from('tasks')
-    .update(updatePayload)
-    .eq('id', taskId)
-    .select()
-    .single();
+  try {
+    const { data, error } = await (supabase as any)
+      .from('tasks')
+      .update(updatePayload)
+      .eq('id', taskId)
+      .select()
+      .maybeSingle();
 
-  if (error) {
-    console.error('Error updating task in Supabase:', error);
-    throw error;
+    if (error) {
+      console.warn('Supabase updateTask note:', error?.message || error);
+      return null;
+    }
+
+    if (!data) return null;
+
+    const updated = mapRowToTask(data as TaskRow);
+
+    if (updates.completed !== undefined) {
+      await logTaskHistory(
+        updated.userId,
+        taskId,
+        updates.completed ? 'completed' : 'reopened',
+        { title: updated.title }
+      );
+    } else {
+      await logTaskHistory(updated.userId, taskId, 'updated', { title: updated.title });
+    }
+
+    return updated;
+  } catch (err) {
+    console.warn('Supabase updateTask exception:', err);
+    return null;
   }
-
-  const updated = mapRowToTask(data as TaskRow);
-
-  if (updates.completed !== undefined) {
-    await logTaskHistory(
-      updated.userId,
-      taskId,
-      updates.completed ? 'completed' : 'reopened',
-      { title: updated.title }
-    );
-  } else {
-    await logTaskHistory(updated.userId, taskId, 'updated', { title: updated.title });
-  }
-
-  return updated;
 }
 
 export async function deleteTask(taskId: string, userId: string): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    throw new Error('Supabase credentials not configured in environment variables');
+  if (!isSupabaseConfigured() || !isValidUUID(taskId)) {
+    return;
   }
 
-  const { error } = await (supabase as any)
-    .from('tasks')
-    .delete()
-    .eq('id', taskId);
+  try {
+    const { error } = await (supabase as any)
+      .from('tasks')
+      .delete()
+      .eq('id', taskId);
 
-  if (error) {
-    console.error('Error deleting task in Supabase:', error);
-    throw error;
+    if (error) {
+      console.warn('Supabase deleteTask note:', error?.message || error);
+      return;
+    }
+
+    if (isValidUUID(userId)) {
+      await logTaskHistory(userId, taskId, 'deleted');
+    }
+  } catch (err) {
+    console.warn('Supabase deleteTask exception:', err);
   }
-
-  await logTaskHistory(userId, taskId, 'deleted');
 }
 
 export async function logTaskHistory(
@@ -178,11 +203,11 @@ export async function logTaskHistory(
   action: string,
   details?: Record<string, unknown>
 ): Promise<void> {
-  if (!isSupabaseConfigured()) return;
+  if (!isSupabaseConfigured() || !isValidUUID(userId)) return;
   try {
     await (supabase as any).from('task_history').insert({
       user_id: userId,
-      task_id: taskId,
+      task_id: isValidUUID(taskId) ? taskId : null,
       action,
       details: details || null,
     });
@@ -190,3 +215,4 @@ export async function logTaskHistory(
     console.warn('Failed to log task history:', err);
   }
 }
+

@@ -14,6 +14,16 @@ export const isSupabaseConfigured = (): boolean => {
   );
 };
 
+export const isValidUUID = (id?: string | null): boolean => {
+  if (!id || typeof id !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+};
+
+export const isAuthUser = (user?: { id?: string | null; email?: string | null } | null): boolean => {
+  if (!user || !user.id) return false;
+  return isSupabaseConfigured() && isValidUUID(user.id) && Boolean(user.email);
+};
+
 // Create a typed Supabase client
 export const supabase = createClient<Database>(
   supabaseUrl || 'https://placeholder-project.supabase.co',

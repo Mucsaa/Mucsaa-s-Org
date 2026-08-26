@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
+import { supabase, isSupabaseConfigured, isValidUUID } from '../../lib/supabaseClient';
 import { PolarisEvolution, PolarisStage } from '../../types';
 import { CharacterSettingsRow, Database } from '../../types/database';
 import { DEFAULT_POLARIS } from '../../utils/rewards';
@@ -21,33 +21,38 @@ export function mapRowToPolaris(row: CharacterSettingsRow): PolarisEvolution {
 }
 
 export async function fetchCharacterSettings(userId: string): Promise<PolarisEvolution | null> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() || !isValidUUID(userId)) {
     return null;
   }
 
-  const { data, error } = await (supabase as any)
-    .from('character_settings')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
+  try {
+    const { data, error } = await (supabase as any)
+      .from('character_settings')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-  if (error) {
-    console.error('Error fetching character settings from Supabase:', error);
-    throw error;
-  }
+    if (error) {
+      console.warn('Supabase fetchCharacterSettings note:', error?.message || error);
+      return null;
+    }
 
-  if (!data) {
+    if (!data) {
+      return null;
+    }
+
+    return mapRowToPolaris(data as CharacterSettingsRow);
+  } catch (err) {
+    console.warn('Supabase fetchCharacterSettings exception:', err);
     return null;
   }
-
-  return mapRowToPolaris(data as CharacterSettingsRow);
 }
 
 export async function upsertCharacterSettings(
   userId: string,
   polaris: PolarisEvolution
 ): Promise<PolarisEvolution> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() || !isValidUUID(userId)) {
     return polaris;
   }
 
@@ -68,16 +73,22 @@ export async function upsertCharacterSettings(
     updated_at: new Date().toISOString(),
   };
 
-  const { data, error } = await (supabase as any)
-    .from('character_settings')
-    .upsert(payload, { onConflict: 'user_id' })
-    .select()
-    .single();
+  try {
+    const { data, error } = await (supabase as any)
+      .from('character_settings')
+      .upsert(payload, { onConflict: 'user_id' })
+      .select()
+      .maybeSingle();
 
-  if (error) {
-    console.error('Error updating character settings in Supabase:', error);
-    throw error;
+    if (error) {
+      console.warn('Supabase upsertCharacterSettings note:', error?.message || error);
+      return polaris;
+    }
+
+    return data ? mapRowToPolaris(data as CharacterSettingsRow) : polaris;
+  } catch (err) {
+    console.warn('Supabase upsertCharacterSettings exception:', err);
+    return polaris;
   }
-
-  return mapRowToPolaris(data as CharacterSettingsRow);
 }
+

@@ -72,9 +72,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (res.error) {
           setErrorMsg(res.error);
           soundManager.playError();
-        } else if (res.needsEmailConfirmation) {
-          setSuccessMsg('Conta criada com sucesso! Verifique seu e-mail para confirmar ou faça login se a confirmação estiver desativada.');
-          soundManager.playCelebration();
         } else if (res.user) {
           soundManager.playCelebration();
           onLogin(res.user);

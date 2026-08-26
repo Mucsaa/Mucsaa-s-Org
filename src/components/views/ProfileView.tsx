@@ -485,11 +485,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
 
         {/* Database Tables & Security Checklist */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 text-center">
-          {['profiles', 'categories', 'tasks', 'character_settings', 'task_history'].map((tbl) => (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-center">
+          {['categories', 'tasks', 'character_settings', 'task_history'].map((tbl) => (
             <div
               key={tbl}
-              className="p-2 rounded-xl bg-orange-50/50 dark:bg-[#251E18] border border-orange-100/70 dark:border-amber-950/50 text-[11px] font-bold text-slate-700 dark:text-slate-300"
+              className="p-2.5 rounded-xl bg-orange-50/50 dark:bg-[#251E18] border border-orange-100/70 dark:border-amber-950/50 text-[11px] font-bold text-slate-700 dark:text-slate-300"
             >
               <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mb-0.5">
                 RLS Ativo
@@ -517,21 +517,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    navigator.clipboard.writeText(`-- TABELAS SUPABASE AGENDA POLARIS
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  avatar_url TEXT,
-  streak_days INTEGER DEFAULT 1,
-  last_active_date DATE DEFAULT CURRENT_DATE,
-  tasks_completed INTEGER DEFAULT 0,
-  focus_minutes INTEGER DEFAULT 0,
-  preferences JSONB DEFAULT '{"theme":"light","ninoPersonality":"divertido","dailyGoal":5}'::jsonb,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+                    navigator.clipboard.writeText(`-- TABELAS & POLÍTICAS RLS DO SUPABASE (AGENDA POLARIS)
 
+-- 1. TABELA: categories
 CREATE TABLE IF NOT EXISTS public.categories (
   id TEXT NOT NULL,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -546,6 +534,7 @@ CREATE TABLE IF NOT EXISTS public.categories (
   PRIMARY KEY (id, user_id)
 );
 
+-- 2. TABELA: tasks
 CREATE TABLE IF NOT EXISTS public.tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -568,6 +557,7 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 3. TABELA: character_settings
 CREATE TABLE IF NOT EXISTS public.character_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID UNIQUE NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -587,6 +577,7 @@ CREATE TABLE IF NOT EXISTS public.character_settings (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 4. TABELA: task_history
 CREATE TABLE IF NOT EXISTS public.task_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -596,11 +587,41 @@ CREATE TABLE IF NOT EXISTS public.task_history (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+-- ==========================================
+-- HABILITAR ROW LEVEL SECURITY (RLS)
+-- ==========================================
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.character_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.task_history ENABLE ROW LEVEL SECURITY;`);
+ALTER TABLE public.task_history ENABLE ROW LEVEL SECURITY;
+
+-- POLÍTICA: categories
+DROP POLICY IF EXISTS "categories_user_policy" ON public.categories;
+CREATE POLICY "categories_user_policy" ON public.categories
+  FOR ALL TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- POLÍTICA: tasks
+DROP POLICY IF EXISTS "tasks_user_policy" ON public.tasks;
+CREATE POLICY "tasks_user_policy" ON public.tasks
+  FOR ALL TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- POLÍTICA: character_settings
+DROP POLICY IF EXISTS "character_settings_user_policy" ON public.character_settings;
+CREATE POLICY "character_settings_user_policy" ON public.character_settings
+  FOR ALL TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- POLÍTICA: task_history
+DROP POLICY IF EXISTS "task_history_user_policy" ON public.task_history;
+CREATE POLICY "task_history_user_policy" ON public.task_history
+  FOR ALL TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);`);
                     setCopiedSql(true);
                     soundManager.playPop();
                     setTimeout(() => setCopiedSql(false), 3000);
@@ -612,7 +633,7 @@ ALTER TABLE public.task_history ENABLE ROW LEVEL SECURITY;`);
                 </button>
               </div>
               <p className="text-slate-400 text-[11px] leading-relaxed">
-                Todas as 5 tabelas contam com Row Level Security (RLS) baseado em <code className="text-emerald-400">auth.uid() = user_id</code>, garantindo privacidade total para cada usuário.
+                Todas as 4 tabelas contam com Row Level Security (RLS) baseado em <code className="text-emerald-400">auth.uid() = user_id</code>, garantindo privacidade total para cada usuário.
               </p>
             </div>
           )}
