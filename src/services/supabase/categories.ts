@@ -24,6 +24,11 @@ export async function fetchUserCategories(userId: string): Promise<CategoryConfi
   }
 
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.user || session.user.id !== userId) {
+      return defaultList;
+    }
+
     const { data, error } = await (supabase as any)
       .from('categories')
       .select('*')
@@ -54,19 +59,24 @@ export async function createCategory(
     return category;
   }
 
-  const payload: Database['public']['Tables']['categories']['Insert'] = {
-    id: category.id,
-    user_id: userId,
-    name: category.name,
-    icon: category.icon,
-    color: category.color,
-    bg_light: category.bgLight,
-    bg_dark: category.bgDark,
-    text_light: category.textLight,
-    border_light: category.borderLight,
-  };
-
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.user || session.user.id !== userId) {
+      return category;
+    }
+
+    const payload: Database['public']['Tables']['categories']['Insert'] = {
+      id: category.id,
+      user_id: userId,
+      name: category.name,
+      icon: category.icon,
+      color: category.color,
+      bg_light: category.bgLight,
+      bg_dark: category.bgDark,
+      text_light: category.textLight,
+      border_light: category.borderLight,
+    };
+
     const { data, error } = await (supabase as any)
       .from('categories')
       .insert(payload)
@@ -88,19 +98,39 @@ export async function createCategory(
 export async function seedDefaultCategories(userId: string): Promise<void> {
   if (!isSupabaseConfigured() || !isValidUUID(userId)) return;
 
-  const rows: Database['public']['Tables']['categories']['Insert'][] = Object.values(CATEGORIES).map((cat) => ({
-    id: cat.id,
-    user_id: userId,
-    name: cat.name,
-    icon: cat.icon,
-    color: cat.color,
-    bg_light: cat.bgLight,
-    bg_dark: cat.bgDark,
-    text_light: cat.textLight,
-    border_light: cat.borderLight,
-  }));
-
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.user || session.user.id !== userId) {
+      return;
+    }
+
+    // Check if categories already exist for this user to avoid redundant upserts and RLS checks
+    const { data: existing, error: fetchErr } = await (supabase as any)
+      .from('categories')
+      .select('id')
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (fetchErr) {
+      console.warn('Supabase check existing categories note:', fetchErr?.message || fetchErr);
+    }
+
+    if (existing && existing.length > 0) {
+      return; // Already initialized for this user
+    }
+
+    const rows: Database['public']['Tables']['categories']['Insert'][] = Object.values(CATEGORIES).map((cat) => ({
+      id: cat.id,
+      user_id: userId,
+      name: cat.name,
+      icon: cat.icon,
+      color: cat.color,
+      bg_light: cat.bgLight,
+      bg_dark: cat.bgDark,
+      text_light: cat.textLight,
+      border_light: cat.borderLight,
+    }));
+
     const { error } = await (supabase as any).from('categories').upsert(rows);
     if (error) {
       console.warn('Could not seed default categories into Supabase:', error?.message || error);
@@ -109,5 +139,3 @@ export async function seedDefaultCategories(userId: string): Promise<void> {
     console.warn('Seed default categories exception:', e);
   }
 }
-
-

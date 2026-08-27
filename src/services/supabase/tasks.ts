@@ -54,6 +54,11 @@ export async function fetchUserTasks(userId: string): Promise<Task[]> {
   }
 
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.user || session.user.id !== userId) {
+      return [];
+    }
+
     const { data, error } = await (supabase as any)
       .from('tasks')
       .select('*')
@@ -80,9 +85,14 @@ export async function createTask(
     return null;
   }
 
-  const insertData = mapTaskToInsertRow(taskData);
-
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.user || session.user.id !== taskData.userId) {
+      return null;
+    }
+
+    const insertData = mapTaskToInsertRow(taskData);
+
     const { data, error } = await (supabase as any)
       .from('tasks')
       .insert(insertData)
@@ -116,29 +126,34 @@ export async function updateTask(
     return null;
   }
 
-  const updatePayload: Database['public']['Tables']['tasks']['Update'] = {
-    updated_at: new Date().toISOString(),
-  };
-
-  if (updates.title !== undefined) updatePayload.title = updates.title;
-  if (updates.description !== undefined) updatePayload.description = updates.description || null;
-  if (updates.date !== undefined) updatePayload.date = updates.date;
-  if (updates.time !== undefined) updatePayload.time = updates.time || null;
-  if (updates.isAllDay !== undefined) updatePayload.is_all_day = updates.isAllDay;
-  if (updates.category !== undefined) updatePayload.category = updates.category;
-  if (updates.customCategoryName !== undefined) updatePayload.custom_category_name = updates.customCategoryName || null;
-  if (updates.customColor !== undefined) updatePayload.custom_color = updates.customColor || null;
-  if (updates.priority !== undefined) updatePayload.priority = updates.priority;
-  if (updates.recurrence !== undefined) updatePayload.recurrence = updates.recurrence;
-  if (updates.estimatedMinutes !== undefined) updatePayload.estimated_minutes = updates.estimatedMinutes ?? null;
-  if (updates.reminders !== undefined) updatePayload.reminders = updates.reminders as unknown as Database['public']['Tables']['tasks']['Update']['reminders'];
-  if (updates.notes !== undefined) updatePayload.notes = updates.notes || null;
-  if (updates.completed !== undefined) {
-    updatePayload.completed = updates.completed;
-    updatePayload.completed_at = updates.completed ? (updates.completedAt || new Date().toISOString()) : null;
-  }
-
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.user) {
+      return null;
+    }
+
+    const updatePayload: Database['public']['Tables']['tasks']['Update'] = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (updates.title !== undefined) updatePayload.title = updates.title;
+    if (updates.description !== undefined) updatePayload.description = updates.description || null;
+    if (updates.date !== undefined) updatePayload.date = updates.date;
+    if (updates.time !== undefined) updatePayload.time = updates.time || null;
+    if (updates.isAllDay !== undefined) updatePayload.is_all_day = updates.isAllDay;
+    if (updates.category !== undefined) updatePayload.category = updates.category;
+    if (updates.customCategoryName !== undefined) updatePayload.custom_category_name = updates.customCategoryName || null;
+    if (updates.customColor !== undefined) updatePayload.custom_color = updates.customColor || null;
+    if (updates.priority !== undefined) updatePayload.priority = updates.priority;
+    if (updates.recurrence !== undefined) updatePayload.recurrence = updates.recurrence;
+    if (updates.estimatedMinutes !== undefined) updatePayload.estimated_minutes = updates.estimatedMinutes ?? null;
+    if (updates.reminders !== undefined) updatePayload.reminders = updates.reminders as unknown as Database['public']['Tables']['tasks']['Update']['reminders'];
+    if (updates.notes !== undefined) updatePayload.notes = updates.notes || null;
+    if (updates.completed !== undefined) {
+      updatePayload.completed = updates.completed;
+      updatePayload.completed_at = updates.completed ? (updates.completedAt || new Date().toISOString()) : null;
+    }
+
     const { data, error } = await (supabase as any)
       .from('tasks')
       .update(updatePayload)
@@ -179,6 +194,11 @@ export async function deleteTask(taskId: string, userId: string): Promise<void> 
   }
 
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.user) {
+      return;
+    }
+
     const { error } = await (supabase as any)
       .from('tasks')
       .delete()
@@ -204,7 +224,13 @@ export async function logTaskHistory(
   details?: Record<string, unknown>
 ): Promise<void> {
   if (!isSupabaseConfigured() || !isValidUUID(userId)) return;
+
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.user || session.user.id !== userId) {
+      return;
+    }
+
     await (supabase as any).from('task_history').insert({
       user_id: userId,
       task_id: isValidUUID(taskId) ? taskId : null,
@@ -215,4 +241,3 @@ export async function logTaskHistory(
     console.warn('Failed to log task history:', err);
   }
 }
-

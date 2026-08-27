@@ -133,7 +133,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
             <div>
               <strong className="block font-bold">Variáveis de ambiente do Supabase:</strong>
-              Para autenticar seus usuários no seu projeto do Supabase, adicione <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900 rounded font-mono text-[11px]">VITE_SUPABASE_URL</code> e <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900 rounded font-mono text-[11px]">VITE_SUPABASE_PUBLISHABLE_KEY</code> no seu arquivo de ambiente.
+              Para autenticar seus usuários no seu projeto do Supabase, adicione <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900 rounded font-mono text-[11px]">VITE_SUPABASE_URL</code> e <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900 rounded font-mono text-[11px]">VITE_SUPABASE_ANON_KEY</code> no seu arquivo de ambiente.
             </div>
           </div>
         )}

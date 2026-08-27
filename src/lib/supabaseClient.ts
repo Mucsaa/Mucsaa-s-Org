@@ -1,16 +1,64 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '../types/database';
 
-const metaEnv = (import.meta as any).env || {};
-const supabaseUrl: string = metaEnv.VITE_SUPABASE_URL || '';
-const supabasePublishableKey: string = metaEnv.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+// Safely retrieve environment variables with fallbacks
+const env = (import.meta as any).env || {};
 
+const rawUrl: string =
+  env.VITE_SUPABASE_URL ||
+  env.SUPABASE_URL ||
+  '';
+
+const rawKey: string =
+  env.VITE_SUPABASE_ANON_KEY ||
+  env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  env.SUPABASE_ANON_KEY ||
+  env.VITE_SUPABASE_KEY ||
+  '';
+
+/**
+ * Normalizes the Supabase URL to ensure it is only the base domain (e.g., https://xyz.supabase.co).
+ * Eliminates any trailing slashes, /auth/v1, /rest/v1, or subpaths that cause "Invalid path specified in request URL".
+ */
+export function normalizeSupabaseUrl(inputUrl?: string): string {
+  if (!inputUrl || typeof inputUrl !== 'string') return '';
+  let cleaned = inputUrl.trim().replace(/^["']|["']$/g, '');
+  if (!cleaned) return '';
+
+  try {
+    const urlObj = new URL(cleaned.startsWith('http') ? cleaned : `https://${cleaned}`);
+    // Return strictly protocol + host (origin) without any pathname or trailing slash
+    return urlObj.origin;
+  } catch {
+    // Fallback regex cleaning if URL parser fails
+    return cleaned
+      .replace(/\/auth\/v1.*$/i, '')
+      .replace(/\/rest\/v1.*$/i, '')
+      .replace(/\/+$/, '');
+  }
+}
+
+/**
+ * Normalizes the API key by trimming whitespace and surrounding quotes.
+ */
+export function normalizeSupabaseKey(inputKey?: string): string {
+  if (!inputKey || typeof inputKey !== 'string') return '';
+  return inputKey.trim().replace(/^["']|["']$/g, '');
+}
+
+export const supabaseUrl = normalizeSupabaseUrl(rawUrl);
+export const supabaseAnonKey = normalizeSupabaseKey(rawKey);
+
+/**
+ * Checks if Supabase has been properly configured with valid URL and key.
+ */
 export const isSupabaseConfigured = (): boolean => {
   return Boolean(
     supabaseUrl &&
-    supabasePublishableKey &&
+    supabaseAnonKey &&
     supabaseUrl.startsWith('https://') &&
-    !supabaseUrl.includes('placeholder')
+    !supabaseUrl.includes('placeholder') &&
+    !supabaseAnonKey.includes('placeholder')
   );
 };
 
@@ -24,10 +72,14 @@ export const isAuthUser = (user?: { id?: string | null; email?: string | null } 
   return isSupabaseConfigured() && isValidUUID(user.id) && Boolean(user.email);
 };
 
-// Create a typed Supabase client
-export const supabase = createClient<Database>(
-  supabaseUrl || 'https://placeholder-project.supabase.co',
-  supabasePublishableKey || 'placeholder-publishable-key',
+// Use valid configured URL/Key, or fallback to standard dummy for type-safe offline mode
+const clientUrl = isSupabaseConfigured() ? supabaseUrl : 'https://ziuhudpvqflxggfiwemz.supabase.co';
+const clientKey = isSupabaseConfigured() ? supabaseAnonKey : 'sb_publishable_placeholder';
+
+// Create a single centralized typed Supabase client
+export const supabase: SupabaseClient<Database> = createClient<Database>(
+  clientUrl,
+  clientKey,
   {
     auth: {
       persistSession: true,
@@ -36,4 +88,3 @@ export const supabase = createClient<Database>(
     },
   }
 );
-
