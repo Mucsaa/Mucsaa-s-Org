@@ -12,11 +12,11 @@ export const DEFAULT_USER: UserProfile = {
   id: 'user_demo_1',
   name: 'Samuel',
   email: 'samuel@exemplo.com',
-  streakDays: 4,
+  streakDays: 0,
   lastActiveDate: getTodayString(),
   createdAt: new Date().toISOString(),
-  tasksCompleted: 3,
-  focusMinutes: 45,
+  tasksCompleted: 0,
+  focusMinutes: 0,
   polaris: DEFAULT_POLARIS,
   preferences: {
     theme: 'light',
@@ -192,25 +192,29 @@ export function saveUserToStorage(user: UserProfile) {
 }
 
 export function loadTasksFromStorage(userId: string): Task[] {
-  if (typeof window === 'undefined') return getInitialDemoTasks(userId);
+  const isDemo = userId === 'user_demo_1';
+  if (typeof window === 'undefined') return isDemo ? getInitialDemoTasks(userId) : [];
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.TASKS);
     if (!raw) {
-      const demo = getInitialDemoTasks(userId);
-      saveTasksToStorage(demo);
-      return demo;
+      if (isDemo) {
+        const demo = getInitialDemoTasks(userId);
+        saveTasksToStorage(demo);
+        return demo;
+      }
+      return [];
     }
     const parsed: Task[] = JSON.parse(raw);
     // Filter for current active user
     const userTasks = parsed.filter(t => t.userId === userId);
-    if (userTasks.length === 0) {
+    if (userTasks.length === 0 && isDemo) {
       const demo = getInitialDemoTasks(userId);
       saveTasksToStorage([...parsed, ...demo]);
       return demo;
     }
     return userTasks;
   } catch {
-    return getInitialDemoTasks(userId);
+    return isDemo ? getInitialDemoTasks(userId) : [];
   }
 }
 

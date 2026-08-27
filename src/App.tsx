@@ -119,8 +119,8 @@ export default function App() {
         if (currentUser && isMounted) {
           setUser(currentUser);
           const remoteTasks = await fetchUserTasks(currentUser.id);
-          if (remoteTasks && remoteTasks.length > 0 && isMounted) {
-            setTasks(remoteTasks);
+          if (isMounted) {
+            setTasks(remoteTasks || []);
           }
         }
       } catch (err) {
@@ -136,8 +136,8 @@ export default function App() {
         if (fullUser && isMounted) {
           setUser(fullUser);
           const remoteTasks = await fetchUserTasks(fullUser.id);
-          if (remoteTasks && isMounted) {
-            setTasks(remoteTasks);
+          if (isMounted) {
+            setTasks(remoteTasks || []);
           }
         }
       } else if (event === 'SIGNED_OUT' && isMounted) {
@@ -175,12 +175,7 @@ export default function App() {
     if (isAuthUser(newUser)) {
       try {
         const userTasks = await fetchUserTasks(newUser.id);
-        if (userTasks && userTasks.length > 0) {
-          setTasks(userTasks);
-        } else {
-          const localTasks = loadTasksFromStorage(newUser.id);
-          setTasks(localTasks);
-        }
+        setTasks(userTasks || []);
       } catch (e) {
         console.warn('Error fetching tasks from Supabase:', e);
         const userTasks = loadTasksFromStorage(newUser.id);

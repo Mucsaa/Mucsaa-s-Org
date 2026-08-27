@@ -273,19 +273,19 @@ export const POLARIS_AURAS: PolarisAura[] = [
   },
 ];
 
-// Default initial Polaris state
+// Default initial Polaris state (starts completely clean from zero at Level 1)
 export const DEFAULT_POLARIS: PolarisEvolution = {
-  xp: 380, // Starts at Level 3 for great first impression
-  level: 3,
-  stardust: 140, // Initial balance
-  ageDays: 4, // 4 days old
+  xp: 0,
+  level: 1,
+  stardust: 0,
+  ageDays: 1,
   stage: 'baby',
-  affinity: 75,
-  equippedAccessory: 'star_pin',
-  equippedAura: 'sparkles',
-  unlockedItems: ['none', 'star_pin', 'sparkles'],
+  affinity: 0,
+  equippedAccessory: 'none',
+  equippedAura: 'none',
+  unlockedItems: ['none'],
   claimedMissions: [],
-  totalCareCount: 3,
+  totalCareCount: 0,
   lastFedDate: undefined,
 };
 
