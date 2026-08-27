@@ -1,20 +1,24 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '../types/database';
 
-// Safely retrieve environment variables with fallbacks
+// Credentials provided for the project
+const DEFAULT_SUPABASE_URL = 'https://qytekphleuholefczmyo.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_4tWk4JDx9qLSzQWyKCwo0Q_HNPoCmZv';
+
+// Safely retrieve environment variables with fallbacks to provided project credentials
 const env = (import.meta as any).env || {};
 
 const rawUrl: string =
   env.VITE_SUPABASE_URL ||
   env.SUPABASE_URL ||
-  '';
+  DEFAULT_SUPABASE_URL;
 
 const rawKey: string =
   env.VITE_SUPABASE_ANON_KEY ||
   env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   env.SUPABASE_ANON_KEY ||
   env.VITE_SUPABASE_KEY ||
-  '';
+  DEFAULT_SUPABASE_ANON_KEY;
 
 /**
  * Normalizes the Supabase URL to ensure it is only the base domain (e.g., https://xyz.supabase.co).
@@ -46,8 +50,8 @@ export function normalizeSupabaseKey(inputKey?: string): string {
   return inputKey.trim().replace(/^["']|["']$/g, '');
 }
 
-export const supabaseUrl = normalizeSupabaseUrl(rawUrl);
-export const supabaseAnonKey = normalizeSupabaseKey(rawKey);
+export const supabaseUrl = normalizeSupabaseUrl(rawUrl) || DEFAULT_SUPABASE_URL;
+export const supabaseAnonKey = normalizeSupabaseKey(rawKey) || DEFAULT_SUPABASE_ANON_KEY;
 
 /**
  * Checks if Supabase has been properly configured with valid URL and key.
@@ -72,14 +76,10 @@ export const isAuthUser = (user?: { id?: string | null; email?: string | null } 
   return isSupabaseConfigured() && isValidUUID(user.id) && Boolean(user.email);
 };
 
-// Use valid configured URL/Key, or fallback to your configured project
-const clientUrl = isSupabaseConfigured() ? supabaseUrl : 'https://qytekphleuholefczmyo.supabase.co';
-const clientKey = isSupabaseConfigured() ? supabaseAnonKey : 'sb_publishable_4tWk4JDx9qLSzQWyKCwo0Q_HNPoCmZv';
-
 // Create a single centralized typed Supabase client
 export const supabase: SupabaseClient<Database> = createClient<Database>(
-  clientUrl,
-  clientKey,
+  supabaseUrl,
+  supabaseAnonKey,
   {
     auth: {
       persistSession: true,
