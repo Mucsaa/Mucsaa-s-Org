@@ -72,9 +72,9 @@ export const isAuthUser = (user?: { id?: string | null; email?: string | null } 
   return isSupabaseConfigured() && isValidUUID(user.id) && Boolean(user.email);
 };
 
-// Use valid configured URL/Key, or fallback to standard dummy for type-safe offline mode
-const clientUrl = isSupabaseConfigured() ? supabaseUrl : 'https://ziuhudpvqflxggfiwemz.supabase.co';
-const clientKey = isSupabaseConfigured() ? supabaseAnonKey : 'sb_publishable_placeholder';
+// Use valid configured URL/Key, or fallback to your configured project
+const clientUrl = isSupabaseConfigured() ? supabaseUrl : 'https://qytekphleuholefczmyo.supabase.co';
+const clientKey = isSupabaseConfigured() ? supabaseAnonKey : 'sb_publishable_4tWk4JDx9qLSzQWyKCwo0Q_HNPoCmZv';
 
 // Create a single centralized typed Supabase client
 export const supabase: SupabaseClient<Database> = createClient<Database>(
