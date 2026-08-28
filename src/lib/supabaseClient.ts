@@ -44,10 +44,21 @@ export function normalizeSupabaseUrl(inputUrl?: string): string {
 
 /**
  * Normalizes the API key by trimming whitespace and surrounding quotes.
+ * If a secret key (starting with sb_secret_ or service_role) is detected, it is rejected
+ * to prevent the "Forbidden use of secret API key in browser" error.
  */
 export function normalizeSupabaseKey(inputKey?: string): string {
   if (!inputKey || typeof inputKey !== 'string') return '';
-  return inputKey.trim().replace(/^["']|["']$/g, '');
+  const cleaned = inputKey.trim().replace(/^["']|["']$/g, '');
+  if (!cleaned) return '';
+
+  // Secret keys must never be used in browser client
+  if (cleaned.startsWith('sb_secret_') || cleaned.toLowerCase().includes('service_role')) {
+    console.warn('Secret key detected in browser environment variables. Supabase blocks secret keys in browsers. Use the "anon" / "publishable" key.');
+    return DEFAULT_SUPABASE_ANON_KEY;
+  }
+
+  return cleaned;
 }
 
 export const supabaseUrl = normalizeSupabaseUrl(rawUrl) || DEFAULT_SUPABASE_URL;

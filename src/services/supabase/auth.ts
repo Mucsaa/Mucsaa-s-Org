@@ -214,6 +214,9 @@ function formatAuthError(error: any): string {
   if (msg.includes('Invalid path specified')) {
     return 'Erro na URL do Supabase: certifique-se de que VITE_SUPABASE_URL contenha apenas a URL base (ex: https://xxx.supabase.co).';
   }
+  if (msg.includes('Forbidden use of secret API key') || msg.includes('secret API key')) {
+    return 'Chave de API inválida no navegador: você usou a chave secreta (Secret/Service Role). No Supabase, use a chave pública "anon" (Project Settings > API > Project API keys > anon public).';
+  }
 
   return msg;
 }
