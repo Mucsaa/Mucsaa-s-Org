@@ -57,6 +57,7 @@ import { StatsView } from './components/views/StatsView';
 import { ProfileView } from './components/views/ProfileView';
 import { TaskModal } from './components/TaskModal';
 import { AuthModal } from './components/AuthModal';
+import { AuthScreen } from './components/AuthScreen';
 import { FocusModeModal } from './components/FocusModeModal';
 import { NotificationToast, ActiveNotification } from './components/NotificationToast';
 import { PolarisSanctuaryModal } from './components/PolarisSanctuaryModal';
@@ -64,13 +65,14 @@ import { PolarisLevelUpModal } from './components/PolarisLevelUpModal';
 
 export default function App() {
   // 1. Core State
-  const [user, setUser] = useState<UserProfile>(() => loadUserFromStorage());
-  const [tasks, setTasks] = useState<Task[]>(() => loadTasksFromStorage(user.id));
+  const [user, setUser] = useState<UserProfile | null>(() => loadUserFromStorage());
+  const [tasks, setTasks] = useState<Task[]>(() => (user ? loadTasksFromStorage(user.id) : []));
+  const [isCheckingSession, setIsCheckingSession] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [isDark, setIsDark] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return document.documentElement.classList.contains('dark') || user.preferences.theme === 'dark';
+      return document.documentElement.classList.contains('dark') || (user?.preferences.theme === 'dark');
     }
     return false;
   });
@@ -91,8 +93,8 @@ export default function App() {
   // 3. Nino Dialogue & Expression Engine
   const [ninoDialogue, setNinoDialogue] = useState<NinoDialogue>(() =>
     generateNinoGreeting({
-      userName: user.name,
-      personality: user.preferences.ninoPersonality,
+      userName: user?.name || 'Viajante',
+      personality: user?.preferences.ninoPersonality || 'divertido',
       tasks,
       selectedDate,
     })
@@ -109,11 +111,16 @@ export default function App() {
 
   // Supabase Initial Auth & Session Synchronization
   useEffect(() => {
-    if (!isSupabaseConfigured()) return;
-
     let isMounted = true;
 
     async function initSupabaseSession() {
+      if (!isSupabaseConfigured()) {
+        if (isMounted) {
+          setIsCheckingSession(false);
+        }
+        return;
+      }
+
       try {
         const currentUser = await getFullCurrentUserData();
         if (currentUser && isMounted) {
@@ -122,9 +129,20 @@ export default function App() {
           if (isMounted) {
             setTasks(remoteTasks || []);
           }
+        } else if (isMounted) {
+          setUser(null);
+          setTasks([]);
         }
       } catch (err) {
         console.warn('Initial Supabase session fetch error:', err);
+        if (isMounted) {
+          setUser(null);
+          setTasks([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsCheckingSession(false);
+        }
       }
     }
 
@@ -141,8 +159,8 @@ export default function App() {
           }
         }
       } else if (event === 'SIGNED_OUT' && isMounted) {
-        setUser(DEFAULT_USER);
-        setTasks(getInitialDemoTasks(DEFAULT_USER.id));
+        setUser(null);
+        setTasks([]);
       }
     });
 
@@ -155,12 +173,14 @@ export default function App() {
   // Persist user and tasks locally
   useEffect(() => {
     saveUserToStorage(user);
-    soundManager.setEnabled(user.preferences.soundEffectsEnabled);
+    if (user) {
+      soundManager.setEnabled(user.preferences.soundEffectsEnabled);
 
-    // Sync mascot evolution to Supabase if authenticated
-    if (isAuthUser(user)) {
-      if (user.polaris) {
-        upsertCharacterSettings(user.id, user.polaris).catch((e) => console.warn('Supabase polaris sync warn:', e));
+      // Sync mascot evolution to Supabase if authenticated
+      if (isAuthUser(user)) {
+        if (user.polaris) {
+          upsertCharacterSettings(user.id, user.polaris).catch((e) => console.warn('Supabase polaris sync warn:', e));
+        }
       }
     }
   }, [user]);
@@ -189,14 +209,19 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
-    await signOutUser();
-    setUser(DEFAULT_USER);
-    setTasks(getInitialDemoTasks(DEFAULT_USER.id));
+    try {
+      await signOutUser();
+    } catch (e) {
+      console.warn('Sign out warn:', e);
+    }
+    setUser(null);
+    setTasks([]);
     soundManager.playPop();
   };
 
   // Re-calculate Nino's contextual dialogue
   const updateNinoState = useCallback(() => {
+    if (!user) return;
     const dialogue = generateNinoGreeting({
       userName: user.name,
       personality: user.preferences.ninoPersonality,
@@ -204,7 +229,7 @@ export default function App() {
       selectedDate,
     });
     setNinoDialogue(dialogue);
-  }, [user.name, user.preferences.ninoPersonality, tasks, selectedDate]);
+  }, [user?.name, user?.preferences?.ninoPersonality, tasks, selectedDate]);
 
   useEffect(() => {
     updateNinoState();
@@ -213,8 +238,8 @@ export default function App() {
   // Periodic Reminder Checker (checks if task is approaching within reminder window)
   useEffect(() => {
     const checkApproachingReminders = () => {
-      // SILENCE ALL NOTIFICATIONS WHEN FOCUS MODE IS ACTIVE
-      if (focusModalOpen) {
+      // SILENCE ALL NOTIFICATIONS WHEN FOCUS MODE IS ACTIVE OR NO USER
+      if (!user || focusModalOpen) {
         return;
       }
 
@@ -229,9 +254,9 @@ export default function App() {
           if (!activeNotifications.some((n) => n.id === notifId)) {
             soundManager.playReminderAlert();
             const message =
-              user.preferences.ninoPersonality === 'divertido'
+              user.preferences?.ninoPersonality === 'divertido'
                 ? `Ei! Seu compromisso "${task.title}" começa daqui a ${mins} minutos! ⚡`
-                : user.preferences.ninoPersonality === 'profissional'
+                : user.preferences?.ninoPersonality === 'profissional'
                 ? `Lembrete pontual: "${task.title}" agendado para ${task.time}.`
                 : `Atenção! Sua tarefa "${task.title}" está chegando. Foco total! 🔥`;
 
@@ -245,7 +270,7 @@ export default function App() {
               },
             ]);
 
-            if (user.preferences.voiceEnabled) {
+            if (user.preferences?.voiceEnabled) {
               speechService.speak(message);
             }
           }
@@ -256,7 +281,7 @@ export default function App() {
     checkApproachingReminders();
     const interval = setInterval(checkApproachingReminders, 45000);
     return () => clearInterval(interval);
-  }, [tasks, activeNotifications, user.preferences, focusModalOpen]);
+  }, [tasks, activeNotifications, user?.preferences, focusModalOpen]);
 
   // Toggle Task Completion with Celebration Cues & Polaris XP Rewards
   const handleToggleTaskComplete = (task: Task) => {
@@ -321,7 +346,7 @@ export default function App() {
       }
 
       // Voice congratulation if voice enabled
-      if (user.preferences.voiceEnabled) {
+      if (user?.preferences?.voiceEnabled) {
         speechService.speak(
           allDone
             ? 'Sensacional! Todas as tarefas de hoje foram concluídas!'
@@ -333,6 +358,7 @@ export default function App() {
 
   // Polaris Sanctuary Action Handlers
   const handleClaimMission = (missionId: string) => {
+    if (!user) return;
     const { updatedUser, levelUpEvent: lvlEvt } = claimMissionReward(user, tasks, missionId);
     setUser(updatedUser);
     soundManager.playCelebration();
@@ -347,6 +373,7 @@ export default function App() {
   };
 
   const handleCareAction = (actionType: 'feed' | 'pet' | 'play' | 'rest') => {
+    if (!user) return;
     const { updatedUser, levelUpEvent: lvlEvt } = performCareAction(user, actionType);
     setUser(updatedUser);
     soundManager.playPop();
@@ -357,27 +384,34 @@ export default function App() {
 
   const handleEquipAccessory = (id: string) => {
     soundManager.playPop();
-    setUser((prev) => ({
-      ...prev,
-      polaris: {
-        ...prev.polaris,
-        equippedAccessory: id,
-      },
-    }));
+    setUser((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        polaris: {
+          ...prev.polaris,
+          equippedAccessory: id,
+        },
+      };
+    });
   };
 
   const handleEquipAura = (id: string) => {
     soundManager.playPop();
-    setUser((prev) => ({
-      ...prev,
-      polaris: {
-        ...prev.polaris,
-        equippedAura: id,
-      },
-    }));
+    setUser((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        polaris: {
+          ...prev.polaris,
+          equippedAura: id,
+        },
+      };
+    });
   };
 
   const handleUnlockItem = (type: 'accessory' | 'aura', id: string, cost: number) => {
+    if (!user) return;
     if ((user.polaris?.stardust || 0) < cost) {
       soundManager.playError();
       return;
@@ -391,6 +425,7 @@ export default function App() {
     });
 
     setUser((prev) => {
+      if (!prev) return null;
       const isAcc = type === 'accessory';
       const updatedUnlocked = Array.from(
         new Set([...(prev.polaris?.unlockedItems || []), id])
@@ -593,19 +628,21 @@ export default function App() {
 
   // Interactive Nino Quote Refresh
   const handleRefreshNinoQuote = () => {
+    if (!user) return;
     soundManager.playPop();
     const randomQuote = getNinoInteractiveQuote(
-      user.preferences.ninoPersonality,
+      user.preferences?.ninoPersonality || 'divertido',
       user.name
     );
     setNinoDialogue(randomQuote);
-    if (user.preferences.voiceEnabled) {
+    if (user.preferences?.voiceEnabled) {
       speechService.speak(randomQuote.text);
     }
   };
 
   // Test Notification Simulation
   const handleTestNotification = () => {
+    if (!user) return;
     soundManager.playReminderAlert();
     const testTask: Task = {
       id: `test-${Date.now()}`,
@@ -625,7 +662,7 @@ export default function App() {
       id: `notif-${Date.now()}`,
       task: testTask,
       message:
-        user.preferences.ninoPersonality === 'divertido'
+        user.preferences?.ninoPersonality === 'divertido'
           ? 'Ei! Seu compromisso de teste começa daqui a 15 minutos! Melhor se preparar! ⚡'
           : 'Lembrete de compromisso agendado para as 15:00.',
       timestamp: 'Agora',
@@ -633,7 +670,7 @@ export default function App() {
 
     setActiveNotifications((prev) => [newNotif, ...prev]);
 
-    if (user.preferences.voiceEnabled) {
+    if (user.preferences?.voiceEnabled) {
       speechService.speak(newNotif.message);
     }
   };
@@ -663,6 +700,7 @@ export default function App() {
   };
 
   const handleResetDemoData = () => {
+    if (!user) return;
     const demo = getInitialDemoTasks(user.id);
     setTasks(demo);
     soundManager.playPop();
@@ -671,14 +709,39 @@ export default function App() {
   const handleToggleTheme = () => {
     const nextDark = !isDark;
     setIsDark(nextDark);
-    setUser({
-      ...user,
-      preferences: {
-        ...user.preferences,
-        theme: nextDark ? 'dark' : 'light',
-      },
-    });
+    if (user) {
+      setUser({
+        ...user,
+        preferences: {
+          ...user.preferences,
+          theme: nextDark ? 'dark' : 'light',
+        },
+      });
+    }
   };
+
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen w-full bg-[#FDFBF7] dark:bg-[#15120E] flex flex-col items-center justify-center gap-3">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white font-extrabold text-xl flex items-center justify-center shadow-lg shadow-orange-500/20 animate-pulse">
+          P
+        </div>
+        <div className="text-xs font-bold font-['Outfit',sans-serif] text-slate-500 dark:text-slate-400">
+          Carregando Polaris Agenda...
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <AuthScreen
+        onLogin={handleUserChange}
+        isDark={isDark}
+        onToggleTheme={handleToggleTheme}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FFFDF9] dark:bg-[#141210] text-slate-900 dark:text-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] transition-colors duration-300 antialiased selection:bg-orange-500 selection:text-white">

@@ -153,15 +153,15 @@ export function getInitialDemoTasks(userId: string): Task[] {
   ];
 }
 
-export function loadUserFromStorage(): UserProfile {
-  if (typeof window === 'undefined') return DEFAULT_USER;
+export function loadUserFromStorage(): UserProfile | null {
+  if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.USER);
-    if (!raw) {
-      saveUserToStorage(DEFAULT_USER);
-      return DEFAULT_USER;
-    }
+    if (!raw) return null;
     const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.id || parsed.id === 'user_demo_1') {
+      return null;
+    }
     const polaris = {
       ...DEFAULT_POLARIS,
       ...(parsed.polaris || {}),
@@ -173,22 +173,34 @@ export function loadUserFromStorage(): UserProfile {
       ...DEFAULT_USER,
       ...parsed,
       polaris,
-      tasksCompleted: parsed.tasksCompleted ?? DEFAULT_USER.tasksCompleted,
-      focusMinutes: parsed.focusMinutes ?? DEFAULT_USER.focusMinutes,
+      tasksCompleted: parsed.tasksCompleted ?? 0,
+      focusMinutes: parsed.focusMinutes ?? 0,
       preferences: { ...DEFAULT_USER.preferences, ...parsed.preferences },
     };
   } catch {
-    return DEFAULT_USER;
+    return null;
   }
 }
 
-export function saveUserToStorage(user: UserProfile) {
+export function saveUserToStorage(user: UserProfile | null) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+    if (!user || user.id === 'user_demo_1') {
+      localStorage.removeItem(STORAGE_KEYS.USER);
+    } else {
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+    }
   } catch {
     // Storage quota might be exceeded
   }
+}
+
+export function clearUserFromStorage() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.removeItem(STORAGE_KEYS.TASKS);
+  } catch {}
 }
 
 export function loadTasksFromStorage(userId: string): Task[] {
