@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
     --canvas-bg: #FFFDF9;
@@ -8,6 +10,7 @@
     --border-warm: #EFE8DF;
     --primary-vibrant: #FF6B35;
     --primary-vibrant-hover: #F25A24;
+    color-scheme: light;
   }
 
   .dark {
@@ -17,15 +20,28 @@
     --border-warm: #2E2822;
     --primary-vibrant: #FF7A45;
     --primary-vibrant-hover: #FF8E5E;
+    color-scheme: dark;
+  }
+
+  html {
+    background-color: var(--canvas-bg);
+  }
+
+  html.dark {
+    background-color: #141210;
   }
 
   body {
     background-color: var(--canvas-bg);
     color: #1E293B;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  .dark body {
+  .dark body,
+  html.dark body {
+    background-color: #141210;
     color: #F8FAFC;
   }
 }

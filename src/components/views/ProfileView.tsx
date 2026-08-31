@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   User,
@@ -6,6 +6,11 @@ import {
   Volume2,
   VolumeX,
   Bell,
+  BellRing,
+  Smartphone,
+  Laptop,
+  Radio,
+  Info,
   Sun,
   Moon,
   Palette,
@@ -22,6 +27,8 @@ import {
   ExternalLink,
   Copy,
   Code2,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -38,6 +45,21 @@ import { soundManager } from '../../utils/sound';
 import { speechService } from '../../utils/speech';
 import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { signOutUser } from '../../services/supabase/auth';
+import {
+  isPushNotificationSupported,
+  getNotificationPermissionState,
+  subscribeUserToPush,
+  unsubscribeUserFromPush,
+  getCurrentPushSubscription,
+  testDevicePushNotification,
+  getDeviceType,
+  isIOSDevice,
+  isPWAStandalone,
+} from '../../utils/pushNotifications';
+import {
+  fetchUserPushSubscriptions,
+  PushSubscriptionRecord,
+} from '../../services/supabase/push';
 
 interface ProfileViewProps {
   user: UserProfile;
@@ -72,6 +94,137 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   const isConfigured = isSupabaseConfigured();
   const isAuthUser = Boolean(user.id && !user.id.startsWith('demo-') && user.email);
+
+  // Push Notifications State
+  const isPushSupported = isPushNotificationSupported();
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>(() =>
+    getNotificationPermissionState()
+  );
+  const [isPushSubscribed, setIsPushSubscribed] = useState<boolean>(false);
+  const [pushLoading, setPushLoading] = useState<boolean>(false);
+  const [pushMessage, setPushMessage] = useState<{
+    text: string;
+    type: 'success' | 'error' | 'info';
+  } | null>(null);
+  const [userSubscriptions, setUserSubscriptions] = useState<PushSubscriptionRecord[]>([]);
+
+  const deviceType = getDeviceType();
+  const isIOS = isIOSDevice();
+  const isPWA = isPWAStandalone();
+
+  // Refresh push state & active subscriptions
+  const refreshPushStatus = async () => {
+    const perm = getNotificationPermissionState();
+    setPushPermission(perm);
+
+    if (perm === 'granted') {
+      const sub = await getCurrentPushSubscription();
+      setIsPushSubscribed(Boolean(sub));
+    } else {
+      setIsPushSubscribed(false);
+    }
+
+    if (isAuthUser && user.id) {
+      const subs = await fetchUserPushSubscriptions(user.id);
+      setUserSubscriptions(subs);
+    }
+  };
+
+  useEffect(() => {
+    refreshPushStatus();
+  }, [user.id, isAuthUser]);
+
+  const handleTogglePushSubscription = async () => {
+    setPushLoading(true);
+    setPushMessage(null);
+
+    try {
+      if (isPushSubscribed) {
+        const success = await unsubscribeUserFromPush(isAuthUser ? user.id : undefined);
+        if (success) {
+          setIsPushSubscribed(false);
+          setPushMessage({
+            text: 'Notificações push desativadas neste dispositivo.',
+            type: 'info',
+          });
+        } else {
+          setPushMessage({
+            text: 'Não foi possível desativar as notificações.',
+            type: 'error',
+          });
+        }
+      } else {
+        const sub = await subscribeUserToPush(isAuthUser ? user.id : undefined);
+        if (sub) {
+          setIsPushSubscribed(true);
+          setPushPermission('granted');
+          setPushMessage({
+            text: '⭐ Notificações push reais ativadas e sincronizadas com sucesso!',
+            type: 'success',
+          });
+
+          // Enable browser notifications in preferences
+          if (!user.preferences.browserNotificationsEnabled) {
+            onUpdateUser({
+              ...user,
+              preferences: {
+                ...user.preferences,
+                browserNotificationsEnabled: true,
+              },
+            });
+          }
+        } else {
+          const perm = getNotificationPermissionState();
+          setPushPermission(perm);
+          if (perm === 'denied') {
+            setPushMessage({
+              text: 'Permissão de notificação bloqueada no navegador. Permita notificações nas configurações do seu site/navegador.',
+              type: 'error',
+            });
+          } else {
+            setPushMessage({
+              text: 'Não foi possível registrar a notificação push no dispositivo.',
+              type: 'error',
+            });
+          }
+        }
+      }
+      await refreshPushStatus();
+    } catch (err: any) {
+      setPushMessage({
+        text: err?.message || 'Erro ao configurar notificações push.',
+        type: 'error',
+      });
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const handleSendRealTestPush = async () => {
+    setPushLoading(true);
+    setPushMessage(null);
+    try {
+      const result = await testDevicePushNotification();
+      if (result.success) {
+        setPushMessage({
+          text: '⭐ Notificação push real enviada com sucesso para o seu dispositivo!',
+          type: 'success',
+        });
+      } else {
+        setPushMessage({
+          text: result.error || 'Falha ao disparar notificação push no dispositivo.',
+          type: 'error',
+        });
+      }
+    } catch (err: any) {
+      setPushMessage({
+        text: err?.message || 'Erro ao enviar notificação.',
+        type: 'error',
+      });
+    } finally {
+      setPushLoading(false);
+    }
+  };
 
   const personalityList: NinoPersonality[] = ['divertido', 'profissional', 'motivador', 'tranquilo'];
   const colorList: NinoThemeColor[] = ['indigo', 'emerald', 'amber', 'rose', 'violet', 'cyan'];
@@ -373,11 +526,225 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
       </div>
 
-      {/* Notifications & System Preferences */}
+      {/* Notifications & Push Engine */}
+      <div className="p-6 rounded-3xl bg-white dark:bg-[#1D1A16] border border-orange-100/90 dark:border-amber-950/70 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-md shadow-orange-500/20">
+              <BellRing className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 font-['Outfit',sans-serif]">
+                  Notificações Push Reais
+                </h3>
+                {pushPermission === 'granted' && isPushSubscribed ? (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Ativas
+                  </span>
+                ) : pushPermission === 'denied' ? (
+                  <span className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-[10px] font-bold border border-rose-200 dark:border-rose-800">
+                    Bloqueadas
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 text-[10px] font-bold border border-amber-200 dark:border-amber-800">
+                    Desativadas
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400">
+                Receba lembretes pontuais de suas tarefas mesmo com o aplicativo fechado.
+              </p>
+            </div>
+          </div>
+
+          {/* Push Action Buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleTogglePushSubscription}
+              disabled={pushLoading || !isPushSupported}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                isPushSubscribed
+                  ? 'border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                  : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/20'
+              }`}
+            >
+              {pushLoading ? (
+                <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Bell className="w-3.5 h-3.5" />
+              )}
+              <span>{isPushSubscribed ? 'Desativar Push' : 'Ativar Push no Dispositivo'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSendRealTestPush}
+              disabled={pushLoading}
+              className="px-3.5 py-2 rounded-xl border border-orange-200 dark:border-amber-900/60 text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-[#251E18] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Radio className="w-3.5 h-3.5 text-orange-500" />
+              Testar Push Real
+            </button>
+          </div>
+        </div>
+
+        {/* Feedback Message */}
+        {pushMessage && (
+          <div
+            className={`p-3.5 rounded-2xl border text-xs flex items-center gap-2.5 ${
+              pushMessage.type === 'success'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60 text-emerald-800 dark:text-emerald-200'
+                : pushMessage.type === 'error'
+                ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60 text-rose-800 dark:text-rose-200'
+                : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-200'
+            }`}
+          >
+            {pushMessage.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+            ) : pushMessage.type === 'error' ? (
+              <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600 dark:text-rose-400" />
+            ) : (
+              <Info className="w-4 h-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+            )}
+            <span className="font-medium">{pushMessage.text}</span>
+          </div>
+        )}
+
+        {/* Device and Subscriptions info */}
+        <div className="p-4 rounded-2xl bg-orange-50/40 dark:bg-[#251E18]/60 border border-orange-100/70 dark:border-amber-950/60 space-y-3 text-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+              {deviceType.includes('android') || deviceType.includes('ios') ? (
+                <Smartphone className="w-4 h-4 text-orange-500" />
+              ) : (
+                <Laptop className="w-4 h-4 text-orange-500" />
+              )}
+              <span>
+                Dispositivo atual: <strong className="text-slate-800 dark:text-slate-100 capitalize">{deviceType}</strong>
+              </span>
+            </div>
+
+            {isAuthUser && userSubscriptions.length > 0 && (
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                {userSubscriptions.length} {userSubscriptions.length === 1 ? 'dispositivo conectado' : 'dispositivos conectados'} no Supabase
+              </div>
+            )}
+          </div>
+
+          {/* iOS Special Banner */}
+          {isIOS && !isPWA && (
+            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/60 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
+              <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+              <div>
+                <strong className="block">Dica para iPhone/iOS:</strong>
+                Para receber notificações com a tela bloqueada ou app fechado no iOS, adicione o Polaris à Tela de Início (toque em <em>Compartilhar</em> ➔ <em>Adicionar à Tela de Início</em>).
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Lembretes de Tarefas e Notificações In-App */}
+        <div className="space-y-3 pt-2">
+          <div className="p-4 rounded-2xl border border-orange-100/80 dark:border-amber-950/60 flex items-center justify-between">
+            <div>
+              <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block">
+                Lembretes de Tarefas Agendadas
+              </span>
+              <span className="text-[11px] text-slate-400">
+                Disparar lembretes (5m, 15m, 30m antes) conforme configurado nas tarefas
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const nextVal = !user.preferences.browserNotificationsEnabled;
+                onUpdateUser({
+                  ...user,
+                  preferences: {
+                    ...user.preferences,
+                    browserNotificationsEnabled: nextVal,
+                  },
+                });
+                soundManager.playPop();
+              }}
+              className={`p-2 rounded-xl transition-colors ${
+                user.preferences.browserNotificationsEnabled
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+              }`}
+            >
+              <Check className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Preferências Visuais e Metas */}
       <div className="p-6 rounded-3xl bg-white dark:bg-[#1D1A16] border border-orange-100/90 dark:border-amber-950/70 shadow-xs space-y-5">
         <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 font-['Outfit',sans-serif]">
-          Preferências do Aplicativo
+          Preferências Visuais & Metas
         </h3>
+
+        {/* Theme Mode Selector (Dark / Light) */}
+        <div className="p-4 rounded-2xl bg-orange-50/40 dark:bg-[#251E18]/60 border border-orange-100/70 dark:border-amber-950/60 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block">
+                Tema Visual da Interface
+              </span>
+              <span className="text-[11px] text-slate-400">
+                Alterne entre o tema claro suave e o tema escuro contrastante
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                if (isDark) onToggleTheme();
+                onUpdateUser({
+                  ...user,
+                  preferences: { ...user.preferences, theme: 'light' },
+                });
+              }}
+              className={`p-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                !isDark
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-md shadow-orange-500/20'
+                  : 'bg-white dark:bg-[#1D1A16] text-slate-600 dark:text-slate-300 border-orange-100 dark:border-amber-900/50 hover:border-orange-200'
+              }`}
+            >
+              <Sun className="w-4 h-4" />
+              <span>☀️ Modo Claro</span>
+              {!isDark && <Check className="w-3.5 h-3.5" />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!isDark) onToggleTheme();
+                onUpdateUser({
+                  ...user,
+                  preferences: { ...user.preferences, theme: 'dark' },
+                });
+              }}
+              className={`p-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                isDark
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-md shadow-orange-500/20'
+                  : 'bg-white dark:bg-[#1D1A16] text-slate-600 dark:text-slate-300 border-orange-100 dark:border-amber-900/50 hover:border-orange-200'
+              }`}
+            >
+              <Moon className="w-4 h-4" />
+              <span>🌙 Modo Escuro</span>
+              {isDark && <Check className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
 
         {/* Daily Goal Setting */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-orange-50/40 dark:bg-[#251E18]/60 border border-orange-100/70 dark:border-amber-950/60">
@@ -406,27 +773,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Test Notification Action */}
-        <div className="flex items-center justify-between p-4 rounded-2xl border border-orange-100/80 dark:border-amber-950/60">
-          <div>
-            <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block">
-              Testar Notificação do Polaris
-            </span>
-            <span className="text-[11px] text-slate-400">
-              Dispara um lembrete interativo agora mesmo para demonstração
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={onTestNotification}
-            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
-          >
-            <Bell className="w-3.5 h-3.5" />
-            Testar Agora
-          </button>
         </div>
       </div>
 

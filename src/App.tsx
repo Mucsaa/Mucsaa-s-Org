@@ -9,6 +9,7 @@ import confetti from 'canvas-confetti';
 import {
   ActiveTab,
   Task,
+  Note,
   UserProfile,
   NinoDialogue,
   NinoExpression,
@@ -19,7 +20,10 @@ import {
   saveUserToStorage,
   loadTasksFromStorage,
   saveTasksToStorage,
+  loadNotesFromStorage,
+  saveNotesToStorage,
   getInitialDemoTasks,
+  getInitialDemoNotes,
   exportAppData,
   importAppData,
   DEFAULT_USER,
@@ -44,6 +48,12 @@ import {
   updateTask,
   deleteTask,
 } from './services/supabase/tasks';
+import {
+  fetchUserNotes,
+  createNote,
+  updateNote,
+  deleteNote,
+} from './services/supabase/notes';
 import { upsertCharacterSettings } from './services/supabase/character';
 import { getFullCurrentUserData, signOutUser } from './services/supabase/auth';
 
@@ -55,6 +65,7 @@ import { CalendarView } from './components/views/CalendarView';
 import { TasksView } from './components/views/TasksView';
 import { StatsView } from './components/views/StatsView';
 import { ProfileView } from './components/views/ProfileView';
+import { NotesView } from './components/views/NotesView';
 import { TaskModal } from './components/TaskModal';
 import { AuthModal } from './components/AuthModal';
 import { AuthScreen } from './components/AuthScreen';
@@ -62,17 +73,31 @@ import { FocusModeModal } from './components/FocusModeModal';
 import { NotificationToast, ActiveNotification } from './components/NotificationToast';
 import { PolarisSanctuaryModal } from './components/PolarisSanctuaryModal';
 import { PolarisLevelUpModal } from './components/PolarisLevelUpModal';
+import { NotificationPermissionModal } from './components/NotificationPermissionModal';
+import {
+  registerPolarisServiceWorker,
+  isPushNotificationSupported,
+  getNotificationPermissionState,
+  subscribeUserToPush,
+} from './utils/pushNotifications';
 
 export default function App() {
   // 1. Core State
   const [user, setUser] = useState<UserProfile | null>(() => loadUserFromStorage());
   const [tasks, setTasks] = useState<Task[]>(() => (user ? loadTasksFromStorage(user.id) : []));
+  const [notes, setNotes] = useState<Note[]>(() => (user ? loadNotesFromStorage(user.id) : []));
   const [isCheckingSession, setIsCheckingSession] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [isDark, setIsDark] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return document.documentElement.classList.contains('dark') || (user?.preferences.theme === 'dark');
+      const stored = localStorage.getItem('polaris_theme');
+      if (stored === 'dark') return true;
+      if (stored === 'light') return false;
+      return (
+        document.documentElement.classList.contains('dark') ||
+        (user?.preferences?.theme === 'dark')
+      );
     }
     return false;
   });
@@ -89,23 +114,73 @@ export default function App() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [sanctuaryModalOpen, setSanctuaryModalOpen] = useState(false);
   const [levelUpEvent, setLevelUpEvent] = useState<LevelUpEvent | null>(null);
+  const [showPushPromptModal, setShowPushPromptModal] = useState(false);
+  const [pushPromptLoading, setPushPromptLoading] = useState(false);
+
+  // Auto register Service Worker for PWA and Web Push
+  useEffect(() => {
+    registerPolarisServiceWorker();
+  }, []);
+
+  // Handle opening task from Notification click (via URL ?taskId=... or Service Worker postMessage)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const targetTaskId = params.get('taskId');
+    if (targetTaskId && tasks.length > 0) {
+      const foundTask = tasks.find((t) => t.id === targetTaskId);
+      if (foundTask) {
+        setSelectedDate(foundTask.date);
+        setEditingTask(foundTask);
+        setTaskModalOpen(true);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'POLARIS_NOTIFICATION_CLICK' && event.data?.taskId) {
+        const taskId = event.data.taskId;
+        const foundTask = tasks.find((t) => t.id === taskId);
+        if (foundTask) {
+          setSelectedDate(foundTask.date);
+          setEditingTask(foundTask);
+          setTaskModalOpen(true);
+        }
+      }
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleSwMessage);
+    }
+
+    return () => {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+      }
+    };
+  }, [tasks]);
 
   // 3. Nino Dialogue & Expression Engine
   const [ninoDialogue, setNinoDialogue] = useState<NinoDialogue>(() =>
     generateNinoGreeting({
       userName: user?.name || 'Viajante',
-      personality: user?.preferences.ninoPersonality || 'divertido',
+      personality: user?.preferences?.ninoPersonality || 'divertido',
       tasks,
       selectedDate,
     })
   );
 
-  // Sync dark class to DOM
+  // Sync dark class to DOM and persist to localStorage
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark');
+      try {
+        localStorage.setItem('polaris_theme', 'dark');
+      } catch {}
     } else {
       document.documentElement.classList.remove('dark');
+      try {
+        localStorage.setItem('polaris_theme', 'light');
+      } catch {}
     }
   }, [isDark]);
 
@@ -125,19 +200,25 @@ export default function App() {
         const currentUser = await getFullCurrentUserData();
         if (currentUser && isMounted) {
           setUser(currentUser);
-          const remoteTasks = await fetchUserTasks(currentUser.id);
+          const [remoteTasks, remoteNotes] = await Promise.all([
+            fetchUserTasks(currentUser.id),
+            fetchUserNotes(currentUser.id),
+          ]);
           if (isMounted) {
             setTasks(remoteTasks || []);
+            setNotes(remoteNotes || []);
           }
         } else if (isMounted) {
           setUser(null);
           setTasks([]);
+          setNotes([]);
         }
       } catch (err) {
         console.warn('Initial Supabase session fetch error:', err);
         if (isMounted) {
           setUser(null);
           setTasks([]);
+          setNotes([]);
         }
       } finally {
         if (isMounted) {
@@ -153,14 +234,19 @@ export default function App() {
         const fullUser = await getFullCurrentUserData();
         if (fullUser && isMounted) {
           setUser(fullUser);
-          const remoteTasks = await fetchUserTasks(fullUser.id);
+          const [remoteTasks, remoteNotes] = await Promise.all([
+            fetchUserTasks(fullUser.id),
+            fetchUserNotes(fullUser.id),
+          ]);
           if (isMounted) {
             setTasks(remoteTasks || []);
+            setNotes(remoteNotes || []);
           }
         }
       } else if (event === 'SIGNED_OUT' && isMounted) {
         setUser(null);
         setTasks([]);
+        setNotes([]);
       }
     });
 
@@ -170,7 +256,7 @@ export default function App() {
     };
   }, []);
 
-  // Persist user and tasks locally
+  // Persist user, tasks, and notes locally
   useEffect(() => {
     saveUserToStorage(user);
     if (user) {
@@ -189,21 +275,31 @@ export default function App() {
     saveTasksToStorage(tasks);
   }, [tasks]);
 
-  // Reload tasks if active user ID changes
+  useEffect(() => {
+    saveNotesToStorage(notes);
+  }, [notes]);
+
+  // Reload tasks & notes if active user ID changes
   const handleUserChange = async (newUser: UserProfile) => {
     setUser(newUser);
     if (isAuthUser(newUser)) {
       try {
-        const userTasks = await fetchUserTasks(newUser.id);
+        const [userTasks, userNotes] = await Promise.all([
+          fetchUserTasks(newUser.id),
+          fetchUserNotes(newUser.id),
+        ]);
         setTasks(userTasks || []);
+        setNotes(userNotes || []);
       } catch (e) {
-        console.warn('Error fetching tasks from Supabase:', e);
+        console.warn('Error fetching data from Supabase:', e);
         const userTasks = loadTasksFromStorage(newUser.id);
+        const userNotes = loadNotesFromStorage(newUser.id);
         setTasks(userTasks);
+        setNotes(userNotes);
       }
     } else {
-      const userTasks = loadTasksFromStorage(newUser.id);
-      setTasks(userTasks);
+      setTasks(loadTasksFromStorage(newUser.id));
+      setNotes(loadNotesFromStorage(newUser.id));
     }
     soundManager.playPop();
   };
@@ -410,8 +506,26 @@ export default function App() {
     });
   };
 
-  const handleUnlockItem = (type: 'accessory' | 'aura', id: string, cost: number) => {
+  const handleUnlockItem = (
+    idOrType: string,
+    costOrId: number | string,
+    typeOrCost?: 'accessory' | 'aura' | number
+  ) => {
     if (!user) return;
+    let id: string;
+    let cost: number;
+    let type: 'accessory' | 'aura';
+
+    if (typeof idOrType === 'string' && typeof costOrId === 'number') {
+      id = idOrType;
+      cost = costOrId;
+      type = (typeOrCost as 'accessory' | 'aura') || 'accessory';
+    } else {
+      type = (idOrType as 'accessory' | 'aura') || 'accessory';
+      id = String(costOrId);
+      cost = Number(typeOrCost) || 0;
+    }
+
     if ((user.polaris?.stardust || 0) < cost) {
       soundManager.playError();
       return;
@@ -507,6 +621,47 @@ export default function App() {
       }
     }
     setEditingTask(null);
+
+    // Contextual Push Notification Prompt check
+    const hasReminders = (taskData.reminders && taskData.reminders.length > 0) || !editingTask;
+    if (
+      hasReminders &&
+      isPushNotificationSupported() &&
+      getNotificationPermissionState() === 'default' &&
+      localStorage.getItem('polaris_push_prompt_dismissed') !== 'true'
+    ) {
+      setTimeout(() => {
+        setShowPushPromptModal(true);
+      }, 500);
+    }
+  };
+
+  const handleConfirmPushPrompt = async () => {
+    setPushPromptLoading(true);
+    try {
+      const sub = await subscribeUserToPush(user?.id);
+      if (sub && user) {
+        handleUserChange({
+          ...user,
+          preferences: {
+            ...user.preferences,
+            browserNotificationsEnabled: true,
+          },
+        });
+      }
+    } catch (e) {
+      console.warn('Push prompt subscribe error:', e);
+    } finally {
+      setPushPromptLoading(false);
+      setShowPushPromptModal(false);
+    }
+  };
+
+  const handleClosePushPrompt = () => {
+    try {
+      localStorage.setItem('polaris_push_prompt_dismissed', 'true');
+    } catch {}
+    setShowPushPromptModal(false);
   };
 
   // Delete Task
@@ -675,14 +830,78 @@ export default function App() {
     }
   };
 
+  // Note Handlers
+  const handleCreateNote = async (title: string, content: string): Promise<Note | null> => {
+    if (!user) return null;
+    const isSupabaseActive = isAuthUser(user);
+    const tempId = isSupabaseActive && isValidUUID(user.id) ? crypto.randomUUID() : `note-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+
+    const newNote: Note = {
+      id: tempId,
+      userId: user.id,
+      title: title.trim(),
+      content: content.trim(),
+      isPinned: false,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    setNotes((prev) => [newNote, ...prev]);
+    soundManager.playPop();
+
+    if (isSupabaseActive && isValidUUID(user.id)) {
+      try {
+        const createdRemote = await createNote(newNote);
+        if (createdRemote && createdRemote.id) {
+          setNotes((prev) =>
+            prev.map((n) => (n.id === tempId ? createdRemote : n))
+          );
+          return createdRemote;
+        }
+      } catch (err) {
+        console.warn('Supabase createNote error:', err);
+      }
+    }
+    return newNote;
+  };
+
+  const handleUpdateNote = async (noteId: string, updates: Partial<Note>): Promise<void> => {
+    const nowIso = new Date().toISOString();
+    setNotes((prev) =>
+      prev.map((n) => (n.id === noteId ? { ...n, ...updates, updatedAt: nowIso } : n))
+    );
+
+    if (isAuthUser(user) && isValidUUID(noteId)) {
+      try {
+        await updateNote(noteId, updates);
+      } catch (err) {
+        console.warn('Supabase updateNote error:', err);
+      }
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string): Promise<void> => {
+    setNotes((prev) => prev.filter((n) => n.id !== noteId));
+    soundManager.playPop();
+
+    if (isAuthUser(user) && isValidUUID(noteId)) {
+      try {
+        await deleteNote(noteId);
+      } catch (err) {
+        console.warn('Supabase deleteNote error:', err);
+      }
+    }
+  };
+
   // Data Export & Import & Reset
   const handleExportData = () => {
-    const json = exportAppData(user, tasks);
+    const json = exportAppData(user, tasks, notes);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `nino_agenda_backup_${getTodayString()}.json`;
+    a.download = `polaris_agenda_backup_${getTodayString()}.json`;
     a.click();
     URL.revokeObjectURL(url);
     soundManager.playSuccess();
@@ -693,6 +912,7 @@ export default function App() {
     if (data) {
       if (data.user) setUser(data.user);
       if (data.tasks) setTasks(data.tasks);
+      if (data.notes) setNotes(data.notes);
       soundManager.playSuccess();
       return true;
     }
@@ -701,8 +921,10 @@ export default function App() {
 
   const handleResetDemoData = () => {
     if (!user) return;
-    const demo = getInitialDemoTasks(user.id);
-    setTasks(demo);
+    const demoTasks = getInitialDemoTasks(user.id);
+    const demoNotes = getInitialDemoNotes(user.id);
+    setTasks(demoTasks);
+    setNotes(demoNotes);
     soundManager.playPop();
   };
 
@@ -750,6 +972,7 @@ export default function App() {
         user={user}
         onToggleTheme={handleToggleTheme}
         isDark={isDark}
+        notesCount={notes.length}
         onOpenNotifications={handleTestNotification}
         unreadNotificationsCount={activeNotifications.length}
         onTabSelect={(tab) => {
@@ -785,6 +1008,7 @@ export default function App() {
               <HomeView
                 user={user}
                 tasks={tasks}
+                notes={notes}
                 selectedDate={selectedDate}
                 onSelectDate={(d) => {
                   setSelectedDate(d);
@@ -845,6 +1069,24 @@ export default function App() {
                 onPostponeTask={handlePostponeTask}
                 onOpenNewTaskModal={() => handleOpenNewTask(selectedDate)}
                 onStartFocusTask={handleStartFocusTask}
+              />
+            </motion.div>
+          )}
+
+          {activeTab === 'notes' && (
+            <motion.div
+              key="notes"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+            >
+              <NotesView
+                user={user}
+                notes={notes}
+                onCreateNote={handleCreateNote}
+                onUpdateNote={handleUpdateNote}
+                onDeleteNote={handleDeleteNote}
               />
             </motion.div>
           )}
@@ -949,6 +1191,14 @@ export default function App() {
         user={user}
         onClose={() => setLevelUpEvent(null)}
         onOpenSanctuary={() => setSanctuaryModalOpen(true)}
+      />
+
+      {/* Push Notification Permission Modal */}
+      <NotificationPermissionModal
+        isOpen={showPushPromptModal}
+        onClose={handleClosePushPrompt}
+        onConfirm={handleConfirmPushPrompt}
+        isLoading={pushPromptLoading}
       />
     </div>
   );

@@ -94,6 +94,43 @@ CREATE TABLE IF NOT EXISTS public.task_history (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 6. TABELA DE NOTAS (notes)
+CREATE TABLE IF NOT EXISTS public.notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL DEFAULT '',
+  content TEXT NOT NULL DEFAULT '',
+  is_pinned BOOLEAN DEFAULT FALSE,
+  category TEXT DEFAULT 'general',
+  color TEXT,
+  is_archived BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 7. TABELA DE PUSH SUBSCRIPTIONS (push_subscriptions)
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  device_type TEXT DEFAULT 'browser',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 8. TABELA DE ENTREGAS DE NOTIFICAÇÕES (notification_deliveries - Idempotência)
+CREATE TABLE IF NOT EXISTS public.notification_deliveries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+  scheduled_for TIMESTAMPTZ NOT NULL,
+  sent_at TIMESTAMPTZ DEFAULT NOW(),
+  status TEXT DEFAULT 'sent',
+  CONSTRAINT unique_task_reminder_delivery UNIQUE (task_id, scheduled_for)
+);
+
 -- ==========================================================
 -- HABILITAR ROW LEVEL SECURITY (RLS)
 -- ==========================================================
@@ -103,6 +140,9 @@ ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.character_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.task_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notification_deliveries ENABLE ROW LEVEL SECURITY;
 
 -- ==========================================================
 -- POLÍTICAS DE ACESSO (POLICIES)
@@ -202,6 +242,69 @@ DROP POLICY IF EXISTS "Usuários podem inserir registros no seu histórico" ON p
 CREATE POLICY "Usuários podem inserir registros no seu histórico"
   ON public.task_history FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+
+-- NOTES POLICIES
+DROP POLICY IF EXISTS "Usuários podem ver suas próprias notas" ON public.notes;
+CREATE POLICY "Usuários podem ver suas próprias notas"
+  ON public.notes FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem criar suas próprias notas" ON public.notes;
+CREATE POLICY "Usuários podem criar suas próprias notas"
+  ON public.notes FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem atualizar suas próprias notas" ON public.notes;
+CREATE POLICY "Usuários podem atualizar suas próprias notas"
+  ON public.notes FOR UPDATE
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem deletar suas próprias notas" ON public.notes;
+CREATE POLICY "Usuários podem deletar suas próprias notas"
+  ON public.notes FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- PUSH SUBSCRIPTIONS POLICIES
+DROP POLICY IF EXISTS "Usuários podem ver apenas suas próprias push subscriptions" ON public.push_subscriptions;
+CREATE POLICY "Usuários podem ver apenas suas próprias push subscriptions"
+  ON public.push_subscriptions FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem cadastrar suas push subscriptions" ON public.push_subscriptions;
+CREATE POLICY "Usuários podem cadastrar suas push subscriptions"
+  ON public.push_subscriptions FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem atualizar suas push subscriptions" ON public.push_subscriptions;
+CREATE POLICY "Usuários podem atualizar suas push subscriptions"
+  ON public.push_subscriptions FOR UPDATE
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem deletar suas push subscriptions" ON public.push_subscriptions;
+CREATE POLICY "Usuários podem deletar suas push subscriptions"
+  ON public.push_subscriptions FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- NOTIFICATION DELIVERIES POLICIES
+DROP POLICY IF EXISTS "Usuários podem ver suas entregas de notificações" ON public.notification_deliveries;
+CREATE POLICY "Usuários podem ver suas entregas de notificações"
+  ON public.notification_deliveries FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem registrar entregas de notificações" ON public.notification_deliveries;
+CREATE POLICY "Usuários podem registrar entregas de notificações"
+  ON public.notification_deliveries FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem atualizar suas entregas de notificações" ON public.notification_deliveries;
+CREATE POLICY "Usuários podem atualizar suas entregas de notificações"
+  ON public.notification_deliveries FOR UPDATE
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem deletar suas entregas de notificações" ON public.notification_deliveries;
+CREATE POLICY "Usuários podem deletar suas entregas de notificações"
+  ON public.notification_deliveries FOR DELETE
+  USING (auth.uid() = user_id);
 
 -- ==========================================================
 -- TRIGGER AUTOMÁTICO PARA NOVOS USUÁRIOS

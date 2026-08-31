@@ -152,7 +152,20 @@ export interface CategoryConfig {
   borderLight: string;
 }
 
-export type ActiveTab = 'home' | 'calendar' | 'tasks' | 'stats' | 'profile';
+export type ActiveTab = 'home' | 'calendar' | 'tasks' | 'stats' | 'profile' | 'notes';
+
+export interface Note {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  isPinned: boolean;
+  category?: string;
+  color?: string;
+  isArchived?: boolean;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+}
 
 export type CalendarViewMode = 'month' | 'week' | 'day';
 

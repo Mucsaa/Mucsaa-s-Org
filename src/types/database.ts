@@ -194,6 +194,102 @@ export interface Database {
           created_at?: string;
         };
       };
+      notes: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          content: string;
+          is_pinned: boolean;
+          category: string | null;
+          color: string | null;
+          is_archived: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title?: string;
+          content?: string;
+          is_pinned?: boolean;
+          category?: string | null;
+          color?: string | null;
+          is_archived?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          content?: string;
+          is_pinned?: boolean;
+          category?: string | null;
+          color?: string | null;
+          is_archived?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      push_subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          device_type: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          device_type?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          endpoint?: string;
+          p256dh?: string;
+          auth?: string;
+          device_type?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      notification_deliveries: {
+        Row: {
+          id: string;
+          user_id: string;
+          task_id: string;
+          scheduled_for: string;
+          sent_at: string;
+          status: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          task_id: string;
+          scheduled_for: string;
+          sent_at?: string;
+          status?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          task_id?: string;
+          scheduled_for?: string;
+          sent_at?: string;
+          status?: string;
+        };
+      };
     };
   };
 }
@@ -202,4 +298,7 @@ export type CategoryRow = Database['public']['Tables']['categories']['Row'];
 export type TaskRow = Database['public']['Tables']['tasks']['Row'];
 export type CharacterSettingsRow = Database['public']['Tables']['character_settings']['Row'];
 export type TaskHistoryRow = Database['public']['Tables']['task_history']['Row'];
+export type NoteRow = Database['public']['Tables']['notes']['Row'];
+export type PushSubscriptionRow = Database['public']['Tables']['push_subscriptions']['Row'];
+export type NotificationDeliveryRow = Database['public']['Tables']['notification_deliveries']['Row'];
 

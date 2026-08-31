@@ -7,6 +7,7 @@ import {
   Bell,
   CheckCircle2,
   Zap,
+  FileText,
 } from 'lucide-react';
 import { ActiveTab, UserProfile } from '../types';
 import { THEME_COLORS } from '../utils/constants';
@@ -21,6 +22,7 @@ interface NavbarProps {
   activeTab: ActiveTab;
   onStartFocus?: () => void;
   onOpenSanctuary?: () => void;
+  notesCount?: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -33,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   onStartFocus,
   onOpenSanctuary,
+  notesCount = 0,
 }) => {
   const [timeStr, setTimeStr] = useState('');
 
@@ -122,13 +125,35 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={onStartFocus}
-              className="px-2.5 sm:px-3 py-1.5 rounded-2xl bg-orange-100/90 dark:bg-amber-950/60 hover:bg-orange-200 dark:hover:bg-amber-900/60 text-orange-700 dark:text-amber-300 border border-orange-200/80 dark:border-amber-900/50 text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95"
+              className="px-2.5 sm:px-3 py-1.5 rounded-2xl bg-orange-100/90 dark:bg-amber-950/60 hover:bg-orange-200 dark:hover:bg-amber-900/60 text-orange-700 dark:text-amber-300 border border-orange-200/80 dark:border-amber-900/50 text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
               title="Modo Foco com Polaris"
             >
               <Zap className="w-3.5 h-3.5 fill-orange-500 text-orange-500" />
               <span className="hidden sm:inline">Modo Foco</span>
             </button>
           )}
+
+          {/* Quick Notes Tab Button */}
+          <button
+            type="button"
+            onClick={() => onTabSelect(activeTab === 'notes' ? 'home' : 'notes')}
+            className={`px-2.5 sm:px-3 py-1.5 rounded-2xl border text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer ${
+              activeTab === 'notes'
+                ? 'bg-orange-500 text-white border-orange-600 shadow-orange-500/20'
+                : 'bg-orange-50/80 dark:bg-amber-950/40 hover:bg-orange-100 dark:hover:bg-amber-900/60 text-slate-700 dark:text-slate-200 border-orange-200/70 dark:border-amber-900/40'
+            }`}
+            title="Minhas Notas"
+          >
+            <FileText className={`w-3.5 h-3.5 ${activeTab === 'notes' ? 'text-white' : 'text-orange-500'}`} />
+            <span className="hidden sm:inline">Notas</span>
+            {notesCount !== undefined && notesCount > 0 && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                activeTab === 'notes' ? 'bg-white/20 text-white' : 'bg-orange-500 text-white'
+              }`}>
+                {notesCount}
+              </span>
+            )}
+          </button>
 
           {/* Theme Toggle */}
           <button

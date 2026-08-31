@@ -14,9 +14,14 @@ import {
   Filter,
   Check,
   Zap,
+  FileText,
+  Pin,
+  Gift,
+  Crown,
 } from 'lucide-react';
 import {
   Task,
+  Note,
   UserProfile,
   NinoDialogue,
   NinoExpression,
@@ -37,11 +42,11 @@ import {
 import { CATEGORIES, THEME_COLORS } from '../../utils/constants';
 import { CategoryIcon } from '../CategoryIcon';
 import { getLevelProgress, STAGE_CONFIGS } from '../../utils/rewards';
-import { Gift, Crown } from 'lucide-react';
 
 interface HomeViewProps {
   user: UserProfile;
   tasks: Task[];
+  notes?: Note[];
   selectedDate: string;
   onSelectDate: (date: string) => void;
   ninoDialogue: NinoDialogue;
@@ -62,6 +67,7 @@ interface HomeViewProps {
 export const HomeView: React.FC<HomeViewProps> = ({
   user,
   tasks,
+  notes = [],
   selectedDate,
   onSelectDate,
   ninoDialogue,
@@ -552,6 +558,80 @@ export const HomeView: React.FC<HomeViewProps> = ({
             >
               <Plus className="w-4 h-4" />
               Adicionar Tarefa
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* Quick Notes Section */}
+      <section className="p-5 sm:p-6 rounded-3xl bg-white/90 dark:bg-[#1D1A16]/90 border border-orange-100/80 dark:border-amber-950/60 shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-amber-950/60 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+              <FileText className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 font-['Outfit',sans-serif]">
+                Minhas Notas Rápidas
+              </h3>
+              <p className="text-xs text-slate-400">
+                {notes.length} {notes.length === 1 ? 'anotação disponível' : 'anotações disponíveis'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onNavigateTab('notes')}
+            className="px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-amber-950/50 hover:bg-orange-100 dark:hover:bg-amber-900/60 text-orange-600 dark:text-amber-400 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+          >
+            <span>Ver Todas</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {notes.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {notes.slice(0, 2).map((note) => (
+              <div
+                key={note.id}
+                onClick={() => onNavigateTab('notes')}
+                className="p-4 rounded-2xl bg-orange-50/40 dark:bg-[#251E18] border border-orange-100/80 dark:border-amber-950/70 hover:border-orange-300 dark:hover:border-amber-800 transition-all cursor-pointer text-left group"
+              >
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <h4 className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-100 line-clamp-1">
+                    {note.title || 'Sem título'}
+                  </h4>
+                  {note.isPinned && (
+                    <Pin className="w-3 h-3 text-orange-500 fill-orange-500 shrink-0" />
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                  {note.content || 'Sem texto adicional...'}
+                </p>
+                <div className="mt-2 text-[10px] text-slate-400 flex items-center justify-between">
+                  <span>
+                    {new Date(note.updatedAt).toLocaleDateString('pt-BR', {
+                      day: '2-digit',
+                      month: 'short',
+                    })}
+                  </span>
+                  <span className="text-orange-600 dark:text-orange-400 font-bold group-hover:translate-x-0.5 transition-transform">
+                    Editar ➔
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-4 text-center">
+            <button
+              type="button"
+              onClick={() => onNavigateTab('notes')}
+              className="inline-flex items-center gap-1.5 text-xs text-orange-600 dark:text-orange-400 font-bold hover:underline cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Criar minha primeira anotação no Polaris
             </button>
           </div>
         )}
