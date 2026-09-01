@@ -6,6 +6,7 @@ import { LevelUpEvent, UserProfile } from '../types';
 import { STAGE_CONFIGS } from '../utils/rewards';
 import { NinoAvatar } from './NinoAvatar';
 import { soundManager } from '../utils/sound';
+import { speechService } from '../utils/speech';
 
 interface PolarisLevelUpModalProps {
   event: LevelUpEvent | null;
@@ -23,6 +24,14 @@ export const PolarisLevelUpModal: React.FC<PolarisLevelUpModalProps> = ({
   useEffect(() => {
     if (event) {
       soundManager.playCelebration();
+      if (user.preferences?.voiceEnabled) {
+        speechService.speakPolaris('LEVEL_UP', {
+          volume: user.preferences.voiceVolume ?? 1.0,
+          pitch: user.preferences.voicePitch ?? 1.28,
+          rate: user.preferences.voiceRate ?? 0.96,
+          voiceURI: user.preferences.voiceURI,
+        });
+      }
       // Multi-stage confetti burst
       confetti({
         particleCount: 80,

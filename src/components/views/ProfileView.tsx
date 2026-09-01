@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   User,
   Sparkles,
@@ -29,6 +29,15 @@ import {
   Code2,
   AlertCircle,
   RefreshCw,
+  Play,
+  Square,
+  Sliders,
+  Mic,
+  Smile,
+  Heart,
+  MoonStar,
+  Flame,
+  Clock,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -42,7 +51,13 @@ import {
 } from '../../utils/constants';
 import { NinoAvatar } from '../NinoAvatar';
 import { soundManager } from '../../utils/sound';
-import { speechService } from '../../utils/speech';
+import {
+  speechService,
+  POLARIS_VOICE_PRESETS,
+  POLARIS_PERSONALITIES,
+  PolarisPhraseType,
+  PolarisVocalPersonality,
+} from '../../utils/speech';
 import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { signOutUser } from '../../services/supabase/auth';
 import {
@@ -108,6 +123,30 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   } | null>(null);
   const [userSubscriptions, setUserSubscriptions] = useState<PushSubscriptionRecord[]>([]);
 
+  // Polaris Voice & Vocal Personalities State
+  const [voicesList, setVoicesList] = useState<SpeechSynthesisVoice[]>([]);
+  const [currentVoiceName, setCurrentVoiceName] = useState<string>('');
+  const [isVoiceTesting, setIsVoiceTesting] = useState<boolean>(false);
+  const [activeTestPersonality, setActiveTestPersonality] = useState<PolarisVocalPersonality | null>(null);
+  const [activeTestPhrase, setActiveTestPhrase] = useState<PolarisPhraseType | null>(null);
+
+  const activePersonality: PolarisVocalPersonality = user.preferences.vocalPersonality || 'cute';
+
+  useEffect(() => {
+    const updateVoiceInfo = () => {
+      const allVoices = speechService.getAvailableVoices();
+      setVoicesList(allVoices);
+      const active = speechService.getPolarisVoice(user.preferences.vocalPersonality || 'cute', user.preferences.voiceURI);
+      if (active) {
+        setCurrentVoiceName(active.name);
+      }
+    };
+
+    updateVoiceInfo();
+    const unsubscribe = speechService.onVoicesLoaded(updateVoiceInfo);
+    return () => unsubscribe();
+  }, [user.preferences.vocalPersonality, user.preferences.voiceURI]);
+
   const deviceType = getDeviceType();
   const isIOS = isIOSDevice();
   const isPWA = isPWAStandalone();
@@ -147,46 +186,46 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             text: 'Notificações push desativadas neste dispositivo.',
             type: 'info',
           });
+          onUpdateUser({
+            ...user,
+            preferences: {
+              ...user.preferences,
+              browserNotificationsEnabled: false,
+            },
+          });
         } else {
           setPushMessage({
-            text: 'Não foi possível desativar as notificações.',
+            text: 'Não foi possível desativar as notificações no dispositivo.',
             type: 'error',
           });
         }
       } else {
-        const sub = await subscribeUserToPush(isAuthUser ? user.id : undefined);
-        if (sub) {
+        const result = await subscribeUserToPush(isAuthUser ? user.id : undefined);
+        if (result.success && result.subscription) {
           setIsPushSubscribed(true);
           setPushPermission('granted');
           setPushMessage({
-            text: '⭐ Notificações push reais ativadas e sincronizadas com sucesso!',
+            text: '⭐ Notificações push reais ativadas e registradas com sucesso no dispositivo!',
             type: 'success',
           });
 
-          // Enable browser notifications in preferences
-          if (!user.preferences.browserNotificationsEnabled) {
-            onUpdateUser({
-              ...user,
-              preferences: {
-                ...user.preferences,
-                browserNotificationsEnabled: true,
-              },
-            });
-          }
+          // Enable browser notifications and task reminders in preferences
+          onUpdateUser({
+            ...user,
+            preferences: {
+              ...user.preferences,
+              browserNotificationsEnabled: true,
+              taskRemindersEnabled: user.preferences.taskRemindersEnabled ?? true,
+            },
+          });
         } else {
           const perm = getNotificationPermissionState();
           setPushPermission(perm);
-          if (perm === 'denied') {
-            setPushMessage({
-              text: 'Permissão de notificação bloqueada no navegador. Permita notificações nas configurações do seu site/navegador.',
-              type: 'error',
-            });
-          } else {
-            setPushMessage({
-              text: 'Não foi possível registrar a notificação push no dispositivo.',
-              type: 'error',
-            });
-          }
+          setIsPushSubscribed(false);
+          setPushMessage({
+            text: result.error || 'Não foi possível registrar a notificação push no dispositivo.',
+            type: 'error',
+          });
         }
       }
       await refreshPushStatus();
@@ -207,7 +246,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       const result = await testDevicePushNotification();
       if (result.success) {
         setPushMessage({
-          text: '⭐ Notificação push real enviada com sucesso para o seu dispositivo!',
+          text: '⭐ Notificação Push REAL enviada com sucesso! Verifique sua central de notificações.',
           type: 'success',
         });
       } else {
@@ -218,7 +257,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       }
     } catch (err: any) {
       setPushMessage({
-        text: err?.message || 'Erro ao enviar notificação.',
+        text: err?.message || 'Erro ao enviar notificação de teste.',
         type: 'error',
       });
     } finally {
@@ -279,10 +318,156 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       preferences: { ...user.preferences, voiceEnabled: nextVal },
     });
     if (nextVal) {
-      speechService.speak('Olá! A voz do Polaris está ativada!');
+      soundManager.playPop();
+      speechService.testVoice({
+        volume: user.preferences.voiceVolume ?? 1.0,
+        pitch: user.preferences.voicePitch ?? 1.28,
+        rate: user.preferences.voiceRate ?? 0.96,
+        voiceURI: user.preferences.voiceURI,
+      });
     } else {
       speechService.stop();
+      setIsVoiceTesting(false);
+      setActiveTestPhrase(null);
+      setActiveTestPersonality(null);
     }
+  };
+
+  const handleSelectPersonality = (p: PolarisVocalPersonality) => {
+    soundManager.playPop();
+    const cfg = POLARIS_PERSONALITIES[p] || POLARIS_PERSONALITIES.cute;
+    onUpdateUser({
+      ...user,
+      preferences: {
+        ...user.preferences,
+        vocalPersonality: p,
+        voicePitch: cfg.defaultPitch,
+        voiceRate: cfg.defaultRate,
+        voiceVolume: cfg.defaultVolume,
+      },
+    });
+
+    const activeVoice = speechService.getPolarisVoice(p, user.preferences.voiceURI);
+    if (activeVoice) {
+      setCurrentVoiceName(activeVoice.name);
+    }
+  };
+
+  const handleResetPersonalityDefaults = () => {
+    soundManager.playPop();
+    const cfg = POLARIS_PERSONALITIES[activePersonality] || POLARIS_PERSONALITIES.cute;
+    onUpdateUser({
+      ...user,
+      preferences: {
+        ...user.preferences,
+        voicePitch: cfg.defaultPitch,
+        voiceRate: cfg.defaultRate,
+        voiceVolume: cfg.defaultVolume,
+        voiceURI: undefined,
+      },
+    });
+    const defaultVoice = speechService.getPolarisVoice(activePersonality);
+    if (defaultVoice) {
+      setCurrentVoiceName(defaultVoice.name);
+    }
+  };
+
+  const handlePlayTestPersonality = (p: PolarisVocalPersonality) => {
+    if (isVoiceTesting && activeTestPersonality === p && !activeTestPhrase) {
+      speechService.stop();
+      setIsVoiceTesting(false);
+      setActiveTestPersonality(null);
+      return;
+    }
+
+    setIsVoiceTesting(true);
+    setActiveTestPersonality(p);
+    setActiveTestPhrase(null);
+
+    const cfg = POLARIS_PERSONALITIES[p] || POLARIS_PERSONALITIES.cute;
+    speechService.testPersonality(p, {
+      pitch: user.preferences.voicePitch ?? cfg.defaultPitch,
+      rate: user.preferences.voiceRate ?? cfg.defaultRate,
+      volume: user.preferences.voiceVolume ?? cfg.defaultVolume,
+      voiceURI: user.preferences.voiceURI,
+      onEnd: () => {
+        setIsVoiceTesting(false);
+        setActiveTestPersonality(null);
+      },
+      onError: () => {
+        setIsVoiceTesting(false);
+        setActiveTestPersonality(null);
+      },
+    });
+  };
+
+  const handleVoiceVolumeChange = (vol: number) => {
+    onUpdateUser({
+      ...user,
+      preferences: { ...user.preferences, voiceVolume: vol },
+    });
+  };
+
+  const handleVoicePitchChange = (pitch: number) => {
+    onUpdateUser({
+      ...user,
+      preferences: { ...user.preferences, voicePitch: pitch },
+    });
+  };
+
+  const handleVoiceRateChange = (rate: number) => {
+    onUpdateUser({
+      ...user,
+      preferences: { ...user.preferences, voiceRate: rate },
+    });
+  };
+
+  const handleVoiceSelect = (uri: string) => {
+    speechService.getPolarisVoice(activePersonality, uri);
+    onUpdateUser({
+      ...user,
+      preferences: { ...user.preferences, voiceURI: uri },
+    });
+    const selected = voicesList.find((v) => v.voiceURI === uri);
+    if (selected) {
+      setCurrentVoiceName(selected.name);
+    }
+  };
+
+  const handlePlayTestVoice = (phraseKey: PolarisPhraseType = 'TEST_VOICE') => {
+    if (isVoiceTesting && activeTestPhrase === phraseKey) {
+      speechService.stop();
+      setIsVoiceTesting(false);
+      setActiveTestPhrase(null);
+      return;
+    }
+
+    setIsVoiceTesting(true);
+    setActiveTestPhrase(phraseKey);
+    setActiveTestPersonality(null);
+
+    speechService.speakPolaris(phraseKey, {
+      personality: activePersonality,
+      volume: user.preferences.voiceVolume,
+      pitch: user.preferences.voicePitch,
+      rate: user.preferences.voiceRate,
+      voiceURI: user.preferences.voiceURI,
+      onEnd: () => {
+        setIsVoiceTesting(false);
+        setActiveTestPhrase(null);
+      },
+      onError: () => {
+        setIsVoiceTesting(false);
+        setActiveTestPhrase(null);
+      },
+    });
+  };
+
+  const handleStopTestVoice = () => {
+    speechService.stop();
+    setIsVoiceTesting(false);
+    setActiveTestPhrase(null);
+    setActiveTestPersonality(null);
   };
 
   const handleToggleSound = () => {
@@ -476,39 +661,306 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         </div>
 
-        {/* 3. Audio & Voice Settings */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-          {/* Voice TTS Toggle */}
-          <div className="p-4 rounded-2xl border border-orange-100/80 dark:border-amber-950/60 flex items-center justify-between">
-            <div>
-              <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block">
-                Voz Falada do Polaris
-              </span>
-              <span className="text-[11px] text-slate-400">
-                Ouvir o Polaris falar seus avisos em áudio
-              </span>
+        {/* 3. Audio & Polaris Cute Voice Settings */}
+        <div className="space-y-4 pt-2">
+          {/* Main Cute Voice Studio Card */}
+          <div className="p-5 rounded-3xl border border-orange-200/90 dark:border-amber-900/60 bg-gradient-to-b from-orange-50/60 via-amber-50/20 to-transparent dark:from-amber-950/30 dark:via-transparent dark:to-transparent space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 text-white flex items-center justify-center shadow-md shadow-orange-500/20">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-slate-800 dark:text-slate-100 block font-['Outfit',sans-serif]">
+                      Voz Falada do Polaris
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 text-[10px] font-bold border border-amber-200 dark:border-amber-800">
+                      🦊 Fofa & Carismática
+                    </span>
+                  </div>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    Ouvir o Polaris com voz fofa, alegre, carinhosa e natural em pt-BR
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleVoice}
+                className={`px-4 py-2 rounded-2xl font-bold text-xs flex items-center gap-2 transition-all shadow-xs ${
+                  user.preferences.voiceEnabled
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-orange-500/20'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200'
+                }`}
+              >
+                {user.preferences.voiceEnabled ? (
+                  <>
+                    <Volume2 className="w-4 h-4" />
+                    <span>Voz Ativada</span>
+                  </>
+                ) : (
+                  <>
+                    <VolumeX className="w-4 h-4" />
+                    <span>Desativada</span>
+                  </>
+                )}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleToggleVoice}
-              className={`p-2 rounded-xl transition-colors ${
-                user.preferences.voiceEnabled
-                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-              }`}
-            >
-              {user.preferences.voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-            </button>
+
+            {/* If voice is enabled, show granular tuning controls */}
+            {user.preferences.voiceEnabled && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="space-y-4 pt-2 border-t border-orange-100 dark:border-amber-950/70"
+              >
+                {/* Detected Voice info */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-white/80 dark:bg-slate-900/60 border border-orange-100 dark:border-amber-950/50 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Mic className="w-4 h-4 text-orange-500 shrink-0" />
+                    <div>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">
+                        Voz do Dispositivo:
+                      </span>{' '}
+                      <span className="text-slate-500 dark:text-slate-400 font-medium">
+                        {currentVoiceName || 'Voz Padrão Português (Brasil)'}
+                      </span>
+                    </div>
+                  </div>
+                  {voicesList.length > 1 && (
+                    <select
+                      value={user.preferences.voiceURI || ''}
+                      onChange={(e) => handleVoiceSelect(e.target.value)}
+                      className="px-2.5 py-1.5 rounded-xl border border-orange-200 dark:border-amber-900 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                    >
+                      <option value="">✨ Automático (Melhor Voz Natural)</option>
+                      {voicesList
+                        .filter((v) => v.lang.toLowerCase().startsWith('pt'))
+                        .map((v) => (
+                          <option key={v.voiceURI} value={v.voiceURI}>
+                            {v.name} ({v.lang})
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Audio Tuning Sliders (Volume, Pitch, Rate) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Volume */}
+                  <div className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/50 border border-orange-100/80 dark:border-amber-950/60 space-y-1.5">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <Volume2 className="w-3.5 h-3.5 text-orange-500" />
+                        Volume da Voz
+                      </span>
+                      <span className="font-bold text-orange-600 dark:text-orange-400">
+                        {Math.round((user.preferences.voiceVolume ?? 1.0) * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="1.0"
+                      step="0.05"
+                      value={user.preferences.voiceVolume ?? 1.0}
+                      onChange={(e) => handleVoiceVolumeChange(parseFloat(e.target.value))}
+                      className="w-full h-1.5 bg-orange-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-400">
+                      <span>Suave</span>
+                      <span>Alto (100%)</span>
+                    </div>
+                  </div>
+
+                  {/* Pitch / Tom Fofo */}
+                  <div className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/50 border border-orange-100/80 dark:border-amber-950/60 space-y-1.5">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                        Tom da Voz (Pitch)
+                      </span>
+                      <span className="font-bold text-amber-600 dark:text-amber-400 text-[11px]">
+                        {(user.preferences.voicePitch ?? 1.28) >= 1.35
+                          ? '✨ Hiper Fofa'
+                          : (user.preferences.voicePitch ?? 1.28) >= 1.25
+                          ? '⭐ Fofa e Alegre'
+                          : '🌙 Suave'}
+                      </span>
+                    </div>
+                    <div className="flex gap-1.5 pt-0.5">
+                      {[
+                        { label: 'Suave', pitch: 1.15 },
+                        { label: 'Fofa ⭐', pitch: 1.28 },
+                        { label: 'Hiper Fofa', pitch: 1.38 },
+                      ].map((p) => {
+                        const isCur = Math.abs((user.preferences.voicePitch ?? 1.28) - p.pitch) < 0.06;
+                        return (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => handleVoicePitchChange(p.pitch)}
+                            className={`flex-1 py-1 px-1.5 rounded-xl text-[11px] font-semibold border transition-all ${
+                              isCur
+                                ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
+                                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Rate / Velocidade */}
+                  <div className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/50 border border-orange-100/80 dark:border-amber-950/60 space-y-1.5">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-rose-500" />
+                        Velocidade da Fala
+                      </span>
+                      <span className="font-bold text-rose-600 dark:text-rose-400">
+                        {user.preferences.voiceRate ?? 0.96}x
+                      </span>
+                    </div>
+                    <div className="flex gap-1.5 pt-0.5">
+                      {[
+                        { label: 'Calma', rate: 0.88 },
+                        { label: 'Natural ⭐', rate: 0.96 },
+                        { label: 'Animada', rate: 1.08 },
+                      ].map((r) => {
+                        const isCur = Math.abs((user.preferences.voiceRate ?? 0.96) - r.rate) < 0.05;
+                        return (
+                          <button
+                            key={r.label}
+                            type="button"
+                            onClick={() => handleVoiceRateChange(r.rate)}
+                            className={`flex-1 py-1 px-1.5 rounded-xl text-[11px] font-semibold border transition-all ${
+                              isCur
+                                ? 'bg-rose-500 text-white border-rose-600 shadow-xs'
+                                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                            }`}
+                          >
+                            {r.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Prominent Test Voice Button & Live Audio Waveform */}
+                <div className="flex flex-col sm:flex-row items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500 text-white shadow-md shadow-orange-500/20">
+                  <div className="flex-1 text-center sm:text-left">
+                    <span className="font-bold text-sm block">
+                      {isVoiceTesting ? '🎙️ Polaris falando agora...' : '✨ Testar a Voz do Polaris'}
+                    </span>
+                    <span className="text-xs text-white/90">
+                      "Oi! Eu sou o Polaris! ⭐ Vamos conquistar o dia juntos?"
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isVoiceTesting ? (
+                      <button
+                        type="button"
+                        onClick={handleStopTestVoice}
+                        className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs flex items-center gap-2 backdrop-blur-xs transition-all border border-white/30 shadow-xs"
+                      >
+                        <Square className="w-4 h-4 fill-white" />
+                        <span>Pausar</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handlePlayTestVoice('TEST_VOICE')}
+                        className="px-4 py-2 rounded-xl bg-white text-orange-600 hover:bg-orange-50 font-bold text-xs flex items-center gap-2 transition-all shadow-sm active:scale-95"
+                      >
+                        <Play className="w-4 h-4 fill-orange-600" />
+                        <span>Ouvir voz de teste</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Phrase Presets Explorer */}
+                <div className="space-y-2 pt-1">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide block">
+                    💬 Testar Frases Especiais do Polaris:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                    {[
+                      {
+                        key: 'TASK_COMPLETED' as PolarisPhraseType,
+                        label: '⭐ Conclusão',
+                        text: 'Yaaay! Você conseguiu! ⭐ Eu sabia que você dava conta!',
+                      },
+                      {
+                        key: 'TASK_OVERDUE' as PolarisPhraseType,
+                        label: '🥺 Atrasada',
+                        text: 'Ei... temos uma tarefinha esperando você. 🥺 Vamos resolver isso juntos?',
+                      },
+                      {
+                        key: 'TASK_REMINDER' as PolarisPhraseType,
+                        label: '✨ Lembrete',
+                        text: 'Psst! ✨ Só passando para lembrar que você tem uma tarefa chegando!',
+                      },
+                      {
+                        key: 'LEVEL_UP' as PolarisPhraseType,
+                        label: '🌟 Nível Up',
+                        text: 'Uau! Você subiu de nível! 🌟 Estou ficando cada vez mais poderoso!',
+                      },
+                      {
+                        key: 'FOCUS_START' as PolarisPhraseType,
+                        label: '💜 Foco',
+                        text: 'Shhh... vamos focar juntos? Você consegue! 💜',
+                      },
+                      {
+                        key: 'REST_ADVICE' as PolarisPhraseType,
+                        label: '🌙 Descanso',
+                        text: 'Você trabalhou bastante hoje. 🌙 Que tal descansar um pouquinho?',
+                      },
+                    ].map((p) => {
+                      const isThisActive = isVoiceTesting && activeTestPhrase === p.key;
+                      return (
+                        <button
+                          key={p.key}
+                          type="button"
+                          onClick={() => handlePlayTestVoice(p.key)}
+                          className={`p-2.5 rounded-xl border text-left transition-all ${
+                            isThisActive
+                              ? 'border-orange-500 bg-orange-50 dark:bg-amber-950/70 text-orange-800 dark:text-orange-200 shadow-xs'
+                              : 'border-orange-100/80 dark:border-amber-950/60 bg-white/70 dark:bg-slate-900/50 hover:border-orange-300 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-bold text-xs">{p.label}</span>
+                            {isThisActive ? (
+                              <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+                            ) : (
+                              <Play className="w-3 h-3 text-slate-400" />
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 italic">
+                            "{p.text}"
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </div>
 
           {/* Sound Effects Toggle */}
-          <div className="p-4 rounded-2xl border border-orange-100/80 dark:border-amber-950/60 flex items-center justify-between">
+          <div className="p-4 rounded-2xl border border-orange-100/80 dark:border-amber-950/60 flex items-center justify-between bg-white dark:bg-[#1D1A16]">
             <div>
               <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block">
                 Efeitos Sonoros (Chimes)
               </span>
               <span className="text-[11px] text-slate-400">
-                Sons ao concluir tarefas e metas
+                Sons e melodias cósmicas ao concluir tarefas e metas
               </span>
             </div>
             <button
@@ -538,18 +990,30 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 font-['Outfit',sans-serif]">
                   Notificações Push Reais
                 </h3>
-                {pushPermission === 'granted' && isPushSubscribed ? (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Ativas
+                {!isPushSupported ? (
+                  <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 text-slate-500" />
+                    Não Suportado
                   </span>
                 ) : pushPermission === 'denied' ? (
-                  <span className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-[10px] font-bold border border-rose-200 dark:border-rose-800">
+                  <span className="px-2.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-[10px] font-bold border border-rose-200 dark:border-rose-800 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                     Bloqueadas
                   </span>
+                ) : pushPermission === 'granted' && isPushSubscribed ? (
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Ativadas
+                  </span>
+                ) : pushPermission === 'granted' && !isPushSubscribed ? (
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 text-[10px] font-bold border border-amber-200 dark:border-amber-800 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    Inscrição Pendente
+                  </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 text-[10px] font-bold border border-amber-200 dark:border-amber-800">
-                    Desativadas
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 text-[10px] font-bold border border-amber-200 dark:border-amber-800 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    Permissão Necessária
                   </span>
                 )}
               </div>
@@ -568,7 +1032,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                 isPushSubscribed
                   ? 'border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30'
-                  : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/20'
+                  : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 text-white shadow-md shadow-orange-500/20'
               }`}
             >
               {pushLoading ? (
@@ -583,13 +1047,24 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               type="button"
               onClick={handleSendRealTestPush}
               disabled={pushLoading}
-              className="px-3.5 py-2 rounded-xl border border-orange-200 dark:border-amber-900/60 text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-[#251E18] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl border border-orange-200 dark:border-amber-900/60 text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-[#251E18] active:scale-95 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Radio className="w-3.5 h-3.5 text-orange-500" />
               Testar Push Real
             </button>
           </div>
         </div>
+
+        {/* Permission Denied Assistance Banner */}
+        {pushPermission === 'denied' && (
+          <div className="p-3.5 rounded-2xl bg-rose-50/90 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/70 text-rose-900 dark:text-rose-200 text-xs flex items-start gap-2.5 leading-relaxed">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+            <div>
+              <strong className="block mb-0.5">Permissão de notificações bloqueada no navegador:</strong>
+              Para reativar os lembretes reais, clique no ícone de <strong>cadeado/configurações</strong> ao lado do endereço do site (URL), altere <strong>Notificações</strong> para <strong>Permitir</strong> e recarregue a página.
+            </div>
+          </div>
+        )}
 
         {/* Feedback Message */}
         {pushMessage && (
@@ -647,16 +1122,51 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           )}
         </div>
 
-        {/* Lembretes de Tarefas, Tarefas Atrasadas e Avisos Antecipados */}
+        {/* Configurações Individuais de Lembretes */}
         <div className="space-y-3 pt-2">
-          {/* 1. Lembretes de tarefas */}
+          {/* 1. Notificações Push do Dispositivo */}
           <div className="p-4 rounded-2xl border border-orange-100/80 dark:border-amber-950/60 flex items-center justify-between gap-3">
             <div>
               <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block">
-                🔔 Lembretes de tarefas
+                🔔 Notificações Push
               </span>
               <span className="text-[11px] text-slate-400">
-                Ativar notificações e alertas das atividades registradas
+                Permitir envio de alertas Web Push diretamente para este dispositivo
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const current = user.preferences.browserNotificationsEnabled ?? true;
+                onUpdateUser({
+                  ...user,
+                  preferences: {
+                    ...user.preferences,
+                    browserNotificationsEnabled: !current,
+                  },
+                });
+                soundManager.playPop();
+              }}
+              className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                (user.preferences.browserNotificationsEnabled ?? true)
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+              }`}
+              aria-label="Alternar Notificações Push"
+            >
+              <Check className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* 2. Lembretes de tarefas */}
+          <div className="p-4 rounded-2xl border border-orange-100/80 dark:border-amber-950/60 flex items-center justify-between gap-3">
+            <div>
+              <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block">
+                📋 Lembretes de tarefas
+              </span>
+              <span className="text-[11px] text-slate-400">
+                Notificar nos horários definidos para suas atividades agendadas
               </span>
             </div>
 
@@ -669,7 +1179,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   preferences: {
                     ...user.preferences,
                     taskRemindersEnabled: !current,
-                    browserNotificationsEnabled: !current,
                   },
                 });
                 soundManager.playPop();
@@ -685,7 +1194,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </button>
           </div>
 
-          {/* 2. Tarefas atrasadas */}
+          {/* 3. Tarefas atrasadas */}
           <div className="p-4 rounded-2xl border border-rose-100/80 dark:border-rose-950/60 bg-rose-50/20 dark:bg-rose-950/10 flex items-center justify-between gap-3">
             <div>
               <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block flex items-center gap-1.5">
@@ -720,14 +1229,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </button>
           </div>
 
-          {/* 3. Lembretes antes do horário */}
+          {/* 4. Lembretes antes do vencimento */}
           <div className="p-4 rounded-2xl border border-orange-100/80 dark:border-amber-950/60 flex items-center justify-between gap-3">
             <div>
               <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block">
-                ⏰ Lembretes antes do horário
+                ⏰ Lembretes antes do vencimento
               </span>
               <span className="text-[11px] text-slate-400">
-                Notificar com antecedência (15 min, 30 min, 1 hora antes)
+                Notificar com antecedência configurada (15 min, 30 min, 1 hora antes)
               </span>
             </div>
 

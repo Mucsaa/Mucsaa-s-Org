@@ -39,7 +39,7 @@ export function isPushNotificationSupported(): boolean {
 }
 
 /**
- * Retorna o estado atual da permissão de notificação
+ * Retorna o estado atual da permissão de notificação ('granted' | 'denied' | 'default')
  */
 export function getNotificationPermissionState(): NotificationPermission {
   if (typeof window === 'undefined' || !('Notification' in window)) {
@@ -127,13 +127,13 @@ export async function getCurrentPushSubscription(): Promise<PushSubscription | n
  * Fluxo completo de ativação e registro de Push Subscription no Supabase
  */
 export async function subscribeUserToPush(
-  userId: string,
+  userId?: string,
   vapidKey: string = DEFAULT_VAPID_PUBLIC_KEY
 ): Promise<{ success: boolean; subscription?: PushSubscription; error?: string }> {
   if (!isPushNotificationSupported()) {
     return {
       success: false,
-      error: 'Seu navegador atual não suporta Notificações Push.',
+      error: 'Seu navegador ou dispositivo atual não suporta Web Push / Notificações.',
     };
   }
 
@@ -141,7 +141,7 @@ export async function subscribeUserToPush(
   if (isIOSDevice() && !isPWAStandalone()) {
     return {
       success: false,
-      error: 'No iPhone/iOS, adicione o Polaris à Tela de Início (PWA) para receber notificações em segundo plano.',
+      error: 'No iPhone/iOS, adicione o Polaris à Tela de Início (Toque em Compartilhar ➔ Adicionar à Tela de Início) para receber notificações.',
     };
   }
 
@@ -151,14 +151,18 @@ export async function subscribeUserToPush(
     if (permission !== 'granted') {
       return {
         success: false,
-        error: permission === 'denied'
-          ? 'Permissão de notificações foi bloqueada nas configurações do navegador.'
-          : 'Permissão de notificações não foi concedida.',
+        error:
+          permission === 'denied'
+            ? 'Permissão bloqueada no navegador. Para ativar: clique no ícone de configurações/cadeado ao lado da barra de endereços (URL), altere Notificações para "Permitir" e recarregue a página.'
+            : 'Permissão de notificação não foi concedida.',
       };
     }
 
     // 2. Garante o registro do Service Worker
-    const registration = await registerPolarisServiceWorker();
+    let registration = await registerPolarisServiceWorker();
+    if (!registration) {
+      registration = await navigator.serviceWorker.ready;
+    }
     if (!registration) {
       return {
         success: false,
@@ -181,34 +185,29 @@ export async function subscribeUserToPush(
     const rawP256dh = subscription.getKey('p256dh');
     const rawAuth = subscription.getKey('auth');
 
-    if (!rawP256dh || !rawAuth) {
-      return {
-        success: false,
-        error: 'Não foi possível extrair as chaves criptográficas do dispositivo.',
-      };
-    }
+    if (rawP256dh && rawAuth) {
+      const p256dh = btoa(String.fromCharCode(...new Uint8Array(rawP256dh)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
 
-    const p256dh = btoa(String.fromCharCode(...new Uint8Array(rawP256dh)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
+      const auth = btoa(String.fromCharCode(...new Uint8Array(rawAuth)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
 
-    const auth = btoa(String.fromCharCode(...new Uint8Array(rawAuth)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
+      const deviceType = getDeviceType();
 
-    const deviceType = getDeviceType();
-
-    // 5. Salva no Supabase na tabela push_subscriptions
-    if (userId) {
-      await savePushSubscription({
-        userId,
-        endpoint: subscription.endpoint,
-        p256dh,
-        auth,
-        deviceType,
-      });
+      // 5. Salva no Supabase na tabela push_subscriptions se usuário autenticado
+      if (userId) {
+        await savePushSubscription({
+          userId,
+          endpoint: subscription.endpoint,
+          p256dh,
+          auth,
+          deviceType,
+        });
+      }
     }
 
     return {
@@ -227,7 +226,7 @@ export async function subscribeUserToPush(
 /**
  * Desativa as notificações no dispositivo e remove do Supabase
  */
-export async function unsubscribeUserFromPush(userId: string): Promise<boolean> {
+export async function unsubscribeUserFromPush(userId?: string): Promise<boolean> {
   try {
     const subscription = await getCurrentPushSubscription();
     if (subscription) {
@@ -248,40 +247,78 @@ export async function unsubscribeUserFromPush(userId: string): Promise<boolean> 
  * Dispara uma notificação real de teste no dispositivo via Service Worker
  */
 export async function testDevicePushNotification(
-  task?: Task
+  task?: Task,
+  _userId?: string
 ): Promise<{ success: boolean; error?: string }> {
   if (!isPushNotificationSupported()) {
-    return { success: false, error: 'Web Push ou Notificações não são suportados neste dispositivo/navegador.' };
+    return {
+      success: false,
+      error: 'Web Push ou Notificações não são suportados neste dispositivo/navegador.',
+    };
   }
 
   const perm = getNotificationPermissionState();
   if (perm !== 'granted') {
-    return { success: false, error: 'Permissão de notificação ainda não foi concedida. Clique em "Ativar Push" primeiro.' };
+    if (perm === 'denied') {
+      return {
+        success: false,
+        error: 'Permissão de notificação está bloqueada no navegador. Permita notificações nas configurações do site primeiro.',
+      };
+    }
+    return {
+      success: false,
+      error: 'Permissão de notificação ainda não foi concedida. Clique em "Ativar Push no Dispositivo" primeiro.',
+    };
   }
 
   try {
-    const registration = await navigator.serviceWorker.ready;
+    let registration = await registerPolarisServiceWorker();
+    if (!registration) {
+      registration = await navigator.serviceWorker.ready;
+    }
+    if (!registration) {
+      return {
+        success: false,
+        error: 'Service Worker do Polaris não está pronto no navegador.',
+      };
+    }
+
     const taskTitle = task?.title || 'Revisar metas do Polaris';
-    const taskTime = task?.time || '15:00';
+    const taskTime = task?.time || new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
     const notificationOptions: any = {
-      body: `🌟 Lembrete: Sua tarefa "${taskTitle}" está programada para ${taskTime}. Vamos focar!`,
+      body: `🌟 Lembrete: Sua tarefa "${taskTitle}" está programada para ${taskTime}. Vamos manter o foco!`,
       icon: '/icon.svg',
       badge: '/icon.svg',
       tag: `polaris-test-${Date.now()}`,
-      vibrate: [100, 50, 100],
+      renotify: true,
+      vibrate: [150, 80, 150],
       data: {
         taskId: task?.id || null,
         url: task?.id ? `/?taskId=${task.id}` : '/',
         timestamp: Date.now(),
+        isTest: true,
       },
+      actions: [
+        {
+          action: 'open_app',
+          title: 'Abrir Polaris',
+        },
+        {
+          action: 'dismiss',
+          title: 'Fechar',
+        },
+      ],
     };
 
-    await registration.showNotification('⭐ Polaris Agenda • Lembrete Real', notificationOptions);
+    await registration.showNotification('⭐ Polaris Agenda • Notificação Push Real', notificationOptions);
     return { success: true };
   } catch (err: any) {
     console.warn('Erro ao disparar notificação local pelo Service Worker:', err);
-    return { success: false, error: err?.message || 'Falha ao exibir notificação pelo Service Worker.' };
+    return {
+      success: false,
+      error: err?.message || 'Falha ao exibir notificação no dispositivo.',
+    };
   }
 }
 
@@ -304,7 +341,7 @@ export async function sendDeviceOverdueNotification(
   try {
     const registration = await navigator.serviceWorker.ready;
     const notificationOptions: any = {
-      body: `"${task.title}" está ${delayText.toLowerCase()}. Toque para abrir, adiar ou concluir.`,
+      body: `"${task.title}" está ${delayText.toLowerCase()}. Toque para abrir e concluir ou reagendar.`,
       icon: '/icon.svg',
       badge: '/icon.svg',
       tag: `polaris-overdue-${task.id}-${task.date}`,
@@ -315,6 +352,16 @@ export async function sendDeviceOverdueNotification(
         url: `/?taskId=${task.id}`,
         timestamp: Date.now(),
       },
+      actions: [
+        {
+          action: 'open_app',
+          title: 'Abrir Tarefa',
+        },
+        {
+          action: 'dismiss',
+          title: 'Ignorar',
+        },
+      ],
     };
 
     await registration.showNotification('⚠️ Tarefa Atrasada • Polaris Agenda', notificationOptions);
@@ -345,7 +392,7 @@ export async function sendDeviceApproachingTaskNotification(
     const registration = await navigator.serviceWorker.ready;
     const timeInfo = task.time ? ` às ${task.time}` : '';
     const notificationOptions: any = {
-      body: `Sua tarefa "${task.title}" está programada para daqui a ${minutesUntil} min${timeInfo}. Foco total!`,
+      body: `Sua tarefa "${task.title}" começará em ${minutesUntil} min${timeInfo}. Foco total!`,
       icon: '/icon.svg',
       badge: '/icon.svg',
       tag: `polaris-reminder-${task.id}-${task.time || 'all-day'}`,
@@ -356,6 +403,16 @@ export async function sendDeviceApproachingTaskNotification(
         url: `/?taskId=${task.id}`,
         timestamp: Date.now(),
       },
+      actions: [
+        {
+          action: 'open_app',
+          title: 'Ver Tarefa',
+        },
+        {
+          action: 'dismiss',
+          title: 'Ok',
+        },
+      ],
     };
 
     await registration.showNotification('⏰ Lembrete de Tarefa • Polaris Agenda', notificationOptions);
@@ -365,3 +422,4 @@ export async function sendDeviceApproachingTaskNotification(
     return { success: false, error: err?.message };
   }
 }
+

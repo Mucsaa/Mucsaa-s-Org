@@ -153,11 +153,18 @@ export interface LevelUpEvent {
   evolved: boolean;
 }
 
+export type PolarisVocalPersonality = 'cute' | 'energetic' | 'calm' | 'celebration' | 'concerned';
+
 export interface UserPreferences {
   theme: 'light' | 'dark' | 'system';
   ninoPersonality: NinoPersonality;
   ninoColor: NinoThemeColor;
   voiceEnabled: boolean;
+  vocalPersonality?: PolarisVocalPersonality; // 'cute' | 'energetic' | 'calm' | 'celebration' | 'concerned'
+  voiceVolume?: number; // 0.0 to 1.0 (default 1.0)
+  voicePitch?: number; // 0.8 to 1.6 (default 1.22 for cute mascot tone)
+  voiceRate?: number; // 0.8 to 1.3 (default 0.94 for clear natural pace)
+  voiceURI?: string; // specific voice identifier if chosen
   soundEffectsEnabled: boolean;
   browserNotificationsEnabled: boolean;
   dailyGoal: number; // e.g. 5 tasks per day

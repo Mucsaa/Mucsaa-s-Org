@@ -54,12 +54,28 @@ export const NinoSpeechBubble: React.FC<NinoSpeechBubbleProps> = ({
               <button
                 type="button"
                 onClick={onSpeak}
-                className={`p-1.5 rounded-lg transition-colors text-slate-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-amber-950/40 ${
-                  isSpeaking ? 'text-orange-600 bg-orange-50 dark:bg-amber-950/40 animate-pulse' : ''
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl transition-all text-xs font-semibold ${
+                  isSpeaking
+                    ? 'text-orange-600 bg-orange-100/80 dark:bg-amber-950/70 border border-orange-300 dark:border-orange-700 shadow-xs'
+                    : 'text-slate-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-amber-950/40 border border-transparent'
                 }`}
-                title={isSpeaking ? 'Falando...' : 'Ouvir voz do Polaris'}
+                title={isSpeaking ? 'Pausar fala do Polaris' : 'Ouvir voz fofa do Polaris'}
               >
-                {isSpeaking ? <Volume2 className="w-4 h-4" /> : <Volume2 className="w-4 h-4 opacity-70" />}
+                {isSpeaking ? (
+                  <>
+                    <div className="flex items-center gap-0.5 h-3">
+                      <span className="w-1 h-3 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1 h-2 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1 h-3.5 bg-rose-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                    <span className="text-[11px] font-bold text-orange-600 dark:text-orange-400">Falando</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="w-4 h-4 opacity-80" />
+                    <span className="text-[11px]">Ouvir</span>
+                  </>
+                )}
               </button>
             )}
 

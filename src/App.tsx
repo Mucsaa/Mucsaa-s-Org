@@ -522,11 +522,21 @@ export default function App() {
 
       // Voice congratulation if voice enabled
       if (user?.preferences?.voiceEnabled) {
-        speechService.speak(
-          allDone
-            ? 'Sensacional! Todas as tarefas de hoje foram concluídas!'
-            : 'Boa! Mais uma tarefa concluída com sucesso!'
-        );
+        if (allDone) {
+          speechService.speakPolaris('TASK_COMPLETED_ALL', {
+            volume: user.preferences.voiceVolume,
+            pitch: user.preferences.voicePitch,
+            rate: user.preferences.voiceRate,
+            voiceURI: user.preferences.voiceURI,
+          });
+        } else {
+          speechService.speakPolaris('TASK_COMPLETED', {
+            volume: user.preferences.voiceVolume,
+            pitch: user.preferences.voicePitch,
+            rate: user.preferences.voiceRate,
+            voiceURI: user.preferences.voiceURI,
+          });
+        }
       }
     }
   };
@@ -759,13 +769,14 @@ export default function App() {
   const handleConfirmPushPrompt = async () => {
     setPushPromptLoading(true);
     try {
-      const sub = await subscribeUserToPush(user?.id);
-      if (sub && user) {
+      const result = await subscribeUserToPush(user?.id);
+      if (result.success && result.subscription && user) {
         handleUserChange({
           ...user,
           preferences: {
             ...user.preferences,
             browserNotificationsEnabled: true,
+            taskRemindersEnabled: true,
           },
         });
       }
@@ -896,8 +907,15 @@ export default function App() {
       setIsSpeaking(false);
     } else {
       setIsSpeaking(true);
-      speechService.speak(ninoDialogue.text);
-      setTimeout(() => setIsSpeaking(false), 5000);
+      speechService.speak(ninoDialogue.text, {
+        pitch: user?.preferences?.voicePitch ?? 1.28,
+        rate: user?.preferences?.voiceRate ?? 0.96,
+        volume: user?.preferences?.voiceVolume ?? 1.0,
+        voiceURI: user?.preferences?.voiceURI,
+        mood: 'friendly',
+        onEnd: () => setIsSpeaking(false),
+        onError: () => setIsSpeaking(false),
+      });
     }
   };
 
@@ -911,7 +929,13 @@ export default function App() {
     );
     setNinoDialogue(randomQuote);
     if (user.preferences?.voiceEnabled) {
-      speechService.speak(randomQuote.text);
+      speechService.speak(randomQuote.text, {
+        pitch: user.preferences.voicePitch ?? 1.28,
+        rate: user.preferences.voiceRate ?? 0.96,
+        volume: user.preferences.voiceVolume ?? 1.0,
+        voiceURI: user.preferences.voiceURI,
+        mood: 'friendly',
+      });
     }
   };
 
@@ -921,7 +945,7 @@ export default function App() {
     soundManager.playReminderAlert();
     const testTask: Task = {
       id: `test-${Date.now()}`,
-      title: 'Apresentação do Projeto Nino',
+      title: 'Apresentação do Projeto Polaris',
       date: getTodayString(),
       time: '15:00',
       category: 'work',
@@ -946,7 +970,13 @@ export default function App() {
     setActiveNotifications((prev) => [newNotif, ...prev]);
 
     if (user.preferences?.voiceEnabled) {
-      speechService.speak(newNotif.message);
+      speechService.speak(newNotif.message, {
+        pitch: user.preferences.voicePitch ?? 1.28,
+        rate: user.preferences.voiceRate ?? 0.96,
+        volume: user.preferences.voiceVolume ?? 1.0,
+        voiceURI: user.preferences.voiceURI,
+        mood: 'friendly',
+      });
     }
   };
 
