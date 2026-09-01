@@ -91,12 +91,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const hoursList = Array.from({ length: 16 }, (_, i) => i + 7); // 7:00 to 22:00
 
   return (
-    <div className="space-y-5 pb-24 max-w-5xl mx-auto">
+    <div className="w-full max-w-5xl mx-auto space-y-4 sm:space-y-5 pb-24 overflow-x-hidden min-w-0">
       {/* Calendar Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#1D1A16] p-4 sm:p-5 rounded-3xl border border-orange-100/90 dark:border-amber-950/70 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-white dark:bg-[#1D1A16] p-3.5 sm:p-5 rounded-3xl border border-orange-100/90 dark:border-amber-950/70 shadow-xs w-full min-w-0">
         {/* Navigation & Current Month Display */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 bg-orange-50/80 dark:bg-amber-950/40 p-1 rounded-2xl border border-orange-100/60 dark:border-amber-900/40">
+        <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-1 bg-orange-50/80 dark:bg-amber-950/40 p-1 rounded-2xl border border-orange-100/60 dark:border-amber-900/40 shrink-0">
             <button
               type="button"
               onClick={handlePrevMonth}
@@ -113,7 +113,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 setCurrentMonth(now.getMonth());
                 onSelectDate(today);
               }}
-              className="px-2.5 py-1 text-xs font-bold text-orange-700 dark:text-orange-300 hover:bg-white dark:hover:bg-[#251E18] rounded-xl transition-colors"
+              className="px-2 sm:px-2.5 py-1 text-xs font-bold text-orange-700 dark:text-orange-300 hover:bg-white dark:hover:bg-[#251E18] rounded-xl transition-colors"
             >
               Hoje
             </button>
@@ -127,17 +127,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </button>
           </div>
 
-          <h2 className="text-lg sm:text-xl font-black text-slate-800 dark:text-slate-100 font-['Outfit',sans-serif]">
+          <h2 className="text-base sm:text-xl font-black text-slate-800 dark:text-slate-100 font-['Outfit',sans-serif] truncate">
             {monthNames[currentMonth]} {currentYear}
           </h2>
         </div>
 
         {/* View Mode Switcher (Month, Week, Day) */}
-        <div className="flex items-center gap-1 bg-orange-50/80 dark:bg-amber-950/40 p-1 rounded-2xl text-xs font-bold border border-orange-100/60 dark:border-amber-900/40">
+        <div className="flex items-center gap-1 bg-orange-50/80 dark:bg-amber-950/40 p-1 rounded-2xl text-xs font-bold border border-orange-100/60 dark:border-amber-900/40 self-start sm:self-auto shrink-0">
           <button
             type="button"
             onClick={() => setViewMode('month')}
-            className={`px-3 py-1.5 rounded-xl transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl transition-all ${
               viewMode === 'month'
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
@@ -148,7 +148,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <button
             type="button"
             onClick={() => setViewMode('week')}
-            className={`px-3 py-1.5 rounded-xl transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl transition-all ${
               viewMode === 'week'
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
@@ -159,7 +159,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <button
             type="button"
             onClick={() => setViewMode('day')}
-            className={`px-3 py-1.5 rounded-xl transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl transition-all ${
               viewMode === 'day'
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
@@ -171,11 +171,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Category Filter Horizontal Pills */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar w-full min-w-0">
         <button
           type="button"
           onClick={() => setCategoryFilter('all')}
-          className={`px-3.5 py-1.5 rounded-full font-bold border transition-all whitespace-nowrap ${
+          className={`px-3 sm:px-3.5 py-1.5 rounded-full font-bold border transition-all whitespace-nowrap shrink-0 ${
             categoryFilter === 'all'
               ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-xs'
               : 'bg-white dark:bg-[#1D1A16] text-slate-600 dark:text-slate-300 border-orange-100/90 dark:border-amber-950/70 hover:border-orange-200'
@@ -191,7 +191,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               key={catKey}
               type="button"
               onClick={() => setCategoryFilter(catKey)}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full font-bold border transition-all whitespace-nowrap ${
+              className={`inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full font-bold border transition-all whitespace-nowrap shrink-0 ${
                 isSelected
                   ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-xs'
                   : 'bg-white dark:bg-[#1D1A16] text-slate-600 dark:text-slate-300 border-orange-100/90 dark:border-amber-950/70 hover:border-orange-200'
@@ -209,9 +209,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
       {/* VIEW 1: MONTH VIEW */}
       {viewMode === 'month' && (
-        <div className="bg-white dark:bg-[#1D1A16] rounded-3xl border border-orange-100/90 dark:border-amber-950/70 p-3 sm:p-5 shadow-xs overflow-hidden">
+        <div className="bg-white dark:bg-[#1D1A16] rounded-3xl border border-orange-100/90 dark:border-amber-950/70 p-2 sm:p-5 shadow-xs overflow-hidden w-full min-w-0">
           {/* Day of Week Labels */}
-          <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 text-center text-[11px] font-bold text-orange-900/60 dark:text-amber-300/60 uppercase tracking-wider">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 text-center text-[10px] sm:text-[11px] font-bold text-orange-900/60 dark:text-amber-300/60 uppercase tracking-wider">
             <span>Seg</span>
             <span>Ter</span>
             <span>Qua</span>
@@ -222,9 +222,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </div>
 
           {/* Month Matrix Grid */}
-          <div className="space-y-1 sm:space-y-2">
+          <div className="space-y-1 sm:space-y-2 w-full">
             {monthMatrix.map((week, wIdx) => (
-              <div key={wIdx} className="grid grid-cols-7 gap-1 sm:gap-2">
+              <div key={wIdx} className="grid grid-cols-7 gap-1 sm:gap-2 w-full">
                 {week.map((cell) => {
                   const isSelected = cell.dateStr === selectedDate;
                   const dayTaskList = getTasksForDate(cell.dateStr);
@@ -234,7 +234,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       key={cell.dateStr}
                       onClick={() => onSelectDate(cell.dateStr)}
                       onDoubleClick={() => onOpenNewTaskModal(cell.dateStr)}
-                      className={`min-h-[85px] sm:min-h-[110px] p-1.5 sm:p-2 rounded-2xl border transition-all flex flex-col justify-between cursor-pointer group ${
+                      className={`min-h-[55px] sm:min-h-[110px] p-1 sm:p-2 rounded-xl sm:rounded-2xl border transition-all flex flex-col justify-between cursor-pointer group min-w-0 ${
                         isSelected
                           ? 'border-orange-500 bg-orange-50/70 dark:bg-amber-950/40 ring-2 ring-orange-500/30'
                           : cell.isCurrentMonth
@@ -245,7 +245,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       {/* Cell Header: Day Number & Add Button */}
                       <div className="flex items-center justify-between">
                         <span
-                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                          className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold ${
                             cell.isToday
                               ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs'
                               : isSelected
@@ -262,7 +262,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             e.stopPropagation();
                             onOpenNewTaskModal(cell.dateStr);
                           }}
-                          className="opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:bg-orange-100 dark:hover:bg-amber-950 text-slate-500 transition-opacity"
+                          className="opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:bg-orange-100 dark:hover:bg-amber-950 text-slate-500 transition-opacity hidden sm:block"
                           title="Adicionar tarefa neste dia"
                         >
                           <Plus className="w-3 h-3 text-orange-500" />
@@ -270,7 +270,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       </div>
 
                       {/* Task Badges inside Day Cell */}
-                      <div className="space-y-1 my-1 overflow-hidden">
+                      <div className="space-y-1 my-1 overflow-hidden hidden sm:block">
                         {dayTaskList.slice(0, 3).map((t) => {
                           const cat = CATEGORIES[t.category] || CATEGORIES.other;
                           return (
@@ -303,12 +303,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         )}
                       </div>
 
-                      {/* Mini indicator dot if has tasks */}
-                      <div className="flex items-center gap-0.5 h-1">
-                        {dayTaskList.slice(0, 5).map((t, idx) => (
+                      {/* Mini indicator dot if has tasks (mobile friendly) */}
+                      <div className="flex items-center justify-center sm:justify-start gap-0.5 h-1 sm:h-1.5 mt-0.5">
+                        {dayTaskList.slice(0, 3).map((t, idx) => (
                           <span
                             key={idx}
-                            className="w-1.5 h-1.5 rounded-full"
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
                             style={{
                               backgroundColor: CATEGORIES[t.category]?.color || '#F97316',
                             }}
@@ -326,8 +326,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
       {/* VIEW 2: WEEK VIEW */}
       {viewMode === 'week' && (
-        <div className="bg-white dark:bg-[#1D1A16] rounded-3xl border border-orange-100/90 dark:border-amber-950/70 p-4 sm:p-5 shadow-xs overflow-x-auto">
-          <div className="min-w-[650px] grid grid-cols-7 gap-2">
+        <div className="bg-white dark:bg-[#1D1A16] rounded-3xl border border-orange-100/90 dark:border-amber-950/70 p-3 sm:p-5 shadow-xs overflow-x-auto w-full max-w-full no-scrollbar">
+          <div className="min-w-[560px] sm:min-w-[650px] grid grid-cols-7 gap-2">
             {getDaysOfWeek(selectedDate).map((w) => {
               const isSelected = w.dateStr === selectedDate;
               const dayTaskList = getTasksForDate(w.dateStr);

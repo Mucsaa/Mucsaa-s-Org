@@ -121,9 +121,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const themeConfig = THEME_COLORS[user.preferences.ninoColor] || THEME_COLORS.indigo;
 
   return (
-    <div className="space-y-6 pb-24 max-w-4xl mx-auto">
+    <div className="w-full max-w-4xl mx-auto space-y-5 sm:space-y-6 pb-24 overflow-x-hidden min-w-0">
       {/* Top Welcome & Nino Hero Section */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-100/50 via-amber-50/30 to-white dark:from-[#251E18] dark:via-[#1E1914] dark:to-[#171310] border border-orange-100/80 dark:border-amber-950/60 p-5 sm:p-7 shadow-xs">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-100/50 via-amber-50/30 to-white dark:from-[#251E18] dark:via-[#1E1914] dark:to-[#171310] border border-orange-100/80 dark:border-amber-950/60 p-4 sm:p-7 shadow-xs w-full max-w-full min-w-0">
         {/* Soft Background Accents */}
         <div
           className="absolute -right-16 -top-16 w-56 h-56 rounded-full blur-3xl opacity-35 pointer-events-none"
@@ -131,13 +131,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
         />
 
         {/* Date Headline & Day Navigation Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-5">
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
               <CalendarIcon className="w-3.5 h-3.5" />
               <span>{isSelectedDateToday ? 'Hoje na sua agenda' : 'Data selecionada'}</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 font-['Outfit',sans-serif] tracking-tight">
+            <h2 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-slate-100 font-['Outfit',sans-serif] tracking-tight">
               {formatFullDatePortuguese(new Date(selectedDate + 'T12:00:00'))}
             </h2>
           </div>
@@ -175,7 +175,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         {/* Hero Character & Contextual Dialogue Widget */}
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 pt-1">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 pt-1 w-full min-w-0">
           {/* Interactive Nino Avatar in Highlight */}
           <div className="flex-shrink-0 flex flex-col items-center">
             <NinoAvatar
@@ -220,7 +220,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           {/* Nino Speech Bubble */}
-          <div className="flex-1 w-full flex flex-col justify-center">
+          <div className="flex-1 w-full min-w-0 flex flex-col justify-center">
             <NinoSpeechBubble
               dialogue={ninoDialogue}
               personality={user.preferences.ninoPersonality}
@@ -233,13 +233,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         {/* Polaris Level & XP Evolution Strip */}
-        <div className="mt-4 pt-3.5 border-t border-orange-100/80 dark:border-amber-950/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white/70 dark:bg-[#1D1A16]/70 p-3.5 rounded-2xl">
-          <div className="flex items-center gap-2.5 flex-1 w-full sm:w-auto">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+        <div className="mt-4 pt-3.5 border-t border-orange-100/80 dark:border-amber-950/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white/70 dark:bg-[#1D1A16]/70 p-3 sm:p-3.5 rounded-2xl w-full min-w-0">
+          <div className="flex items-center gap-2.5 flex-1 w-full min-w-0 sm:w-auto">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
               <Sparkles className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2 text-[11px] font-bold mb-1">
+              <div className="flex items-center justify-between gap-2 text-[10px] sm:text-[11px] font-bold mb-1">
                 <span className="text-slate-800 dark:text-slate-200 truncate">
                   {stageConfig.badge} • Nível {polarisProg.level}
                 </span>
@@ -266,17 +266,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <button
                 type="button"
                 onClick={onOpenSanctuary}
-                className="px-3 py-1 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] font-bold shadow-xs hover:from-orange-600 hover:to-amber-600 active:scale-95 transition-all flex items-center gap-1"
+                className="px-2.5 sm:px-3 py-1 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] font-bold shadow-xs hover:from-orange-600 hover:to-amber-600 active:scale-95 transition-all flex items-center gap-1"
               >
                 <Gift className="w-3 h-3" />
-                Santuário & Recompensas
+                Santuário
               </button>
             )}
           </div>
         </div>
 
         {/* Horizontal Mini Week Strip */}
-        <div className="mt-4 pt-3 border-t border-orange-100/80 dark:border-amber-950/60 flex items-center justify-between gap-1 overflow-x-auto pb-1">
+        <div className="mt-4 pt-3 border-t border-orange-100/80 dark:border-amber-950/60 grid grid-cols-7 gap-1 sm:gap-1.5 w-full min-w-0">
           {weekDays.map((w) => {
             const isSelected = w.dateStr === selectedDate;
             const hasTasks = tasks.some((t) => t.date === w.dateStr);
@@ -287,22 +287,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 key={w.dateStr}
                 type="button"
                 onClick={() => onSelectDate(w.dateStr)}
-                className={`flex-1 min-w-[42px] py-2 px-1 rounded-2xl flex flex-col items-center justify-center transition-all ${
+                className={`w-full py-1.5 sm:py-2 px-0.5 sm:px-1 rounded-xl sm:rounded-2xl flex flex-col items-center justify-center transition-all min-w-0 ${
                   isSelected
-                    ? 'bg-gradient-to-tr from-orange-500 to-amber-500 text-white font-bold shadow-md shadow-orange-500/25 scale-105'
+                    ? 'bg-gradient-to-tr from-orange-500 to-amber-500 text-white font-bold shadow-md shadow-orange-500/25 scale-[1.02]'
                     : 'bg-white/80 dark:bg-[#1D1A16]/80 hover:bg-white dark:hover:bg-[#251E18] text-slate-700 dark:text-slate-300 border border-orange-100/70 dark:border-amber-950/50'
                 }`}
               >
-                <span className={`text-[10px] font-semibold uppercase ${isSelected ? 'text-orange-100' : 'text-slate-400'}`}>
-                  {w.dayName}
+                <span className={`text-[9px] sm:text-[10px] font-semibold uppercase truncate ${isSelected ? 'text-orange-100' : 'text-slate-400'}`}>
+                  {w.dayName.slice(0, 3)}
                 </span>
-                <span className="text-sm sm:text-base font-extrabold mt-0.5">{w.dayNum}</span>
+                <span className="text-xs sm:text-base font-extrabold mt-0.5">{w.dayNum}</span>
                 {/* Dot for tasks indicator */}
-                <div className="h-1.5 mt-1 flex items-center justify-center">
+                <div className="h-1.5 mt-0.5 sm:mt-1 flex items-center justify-center">
                   {allDone ? (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-emerald-400" />
                   ) : hasTasks ? (
-                    <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-yellow-200' : 'bg-orange-500'}`} />
+                    <span className={`w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full ${isSelected ? 'bg-yellow-200' : 'bg-orange-500'}`} />
                   ) : (
                     <span className="w-1 h-1 rounded-full bg-transparent" />
                   )}

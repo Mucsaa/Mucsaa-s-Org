@@ -966,7 +966,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFFDF9] dark:bg-[#141210] text-slate-900 dark:text-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] transition-colors duration-300 antialiased selection:bg-orange-500 selection:text-white">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#FFFDF9] dark:bg-[#141210] text-slate-900 dark:text-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] transition-colors duration-300 antialiased selection:bg-orange-500 selection:text-white">
       {/* Top Sticky Navbar */}
       <Navbar
         user={user}
@@ -995,7 +995,7 @@ export default function App() {
       )}
 
       {/* Main Viewport Container */}
-      <main className="flex-1 w-full max-w-5xl mx-auto px-3 sm:px-6 pt-5">
+      <main id="main-content-viewport" className="flex-1 w-full max-w-5xl mx-auto px-3 sm:px-6 pt-4 sm:pt-5 pb-32 sm:pb-36 overflow-x-hidden min-w-0">
         <AnimatePresence mode="wait">
           {activeTab === 'home' && (
             <motion.div

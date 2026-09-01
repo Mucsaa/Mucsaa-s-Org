@@ -120,9 +120,9 @@ export const StatsView: React.FC<StatsViewProps> = ({
   ];
 
   return (
-    <div className="space-y-6 pb-24 max-w-4xl mx-auto">
+    <div className="w-full max-w-4xl mx-auto space-y-5 sm:space-y-6 pb-24 overflow-x-hidden min-w-0">
       {/* Top Banner with Nino & Performance Header */}
-      <div className="p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-orange-500 via-amber-500 to-amber-600 text-white shadow-xl shadow-orange-500/20 relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div className="p-5 sm:p-7 rounded-3xl bg-gradient-to-br from-orange-500 via-amber-500 to-amber-600 text-white shadow-xl shadow-orange-500/20 relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-5 sm:gap-6 w-full min-w-0">
         <div className="space-y-2 text-center sm:text-left z-10">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur-md">
             <Sparkles className="w-3.5 h-3.5 text-amber-100" />

@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured, isValidUUID } from '../../lib/supabaseClient';
 import { Note } from '../../types';
 import { NoteRow, Database } from '../../types/database';
+import { loadNotesFromStorage, saveNotesToStorage } from '../../utils/storage';
 
 export function mapRowToNote(row: NoteRow): Note {
   return {
@@ -21,6 +22,7 @@ export function mapNoteToInsertRow(
   note: Partial<Note> & { userId: string }
 ): Database['public']['Tables']['notes']['Insert'] {
   return {
+    ...(note.id && isValidUUID(note.id) ? { id: note.id } : {}),
     user_id: note.userId,
     title: note.title || '',
     content: note.content || '',
@@ -32,14 +34,15 @@ export function mapNoteToInsertRow(
 }
 
 export async function fetchUserNotes(userId: string): Promise<Note[]> {
+  const localNotes = loadNotesFromStorage(userId);
   if (!isSupabaseConfigured() || !isValidUUID(userId)) {
-    return [];
+    return localNotes;
   }
 
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session || !session.user || session.user.id !== userId) {
-      return [];
+      return localNotes;
     }
 
     const { data, error } = await supabase
@@ -50,26 +53,51 @@ export async function fetchUserNotes(userId: string): Promise<Note[]> {
       .order('updated_at', { ascending: false });
 
     if (error) {
-      console.warn('Supabase fetchUserNotes error:', error.message);
-      return [];
+      // If table is missing or postgrest schema cache is not refreshed, fallback to local storage
+      return localNotes;
     }
 
-    return (data || []).map(mapRowToNote);
-  } catch (err) {
-    console.warn('Exception during fetchUserNotes:', err);
-    return [];
+    if (data && Array.isArray(data) && data.length > 0) {
+      const remoteNotes = data.map(mapRowToNote);
+      saveNotesToStorage(remoteNotes);
+      return remoteNotes;
+    }
+
+    return localNotes;
+  } catch {
+    return localNotes;
   }
 }
 
 export async function createNote(
   note: Partial<Note> & { userId: string; title: string; content?: string }
 ): Promise<Note | null> {
+  const noteId = note.id && isValidUUID(note.id) ? note.id : crypto.randomUUID();
+  const nowIso = new Date().toISOString();
+
+  const createdFallback: Note = {
+    id: noteId,
+    userId: note.userId,
+    title: note.title || '',
+    content: note.content || '',
+    isPinned: Boolean(note.isPinned),
+    category: note.category,
+    color: note.color,
+    isArchived: Boolean(note.isArchived),
+    createdAt: note.createdAt || nowIso,
+    updatedAt: nowIso,
+  };
+
+  // Ensure local storage is immediately updated
+  const existingNotes = loadNotesFromStorage(note.userId);
+  saveNotesToStorage([createdFallback, ...existingNotes.filter(n => n.id !== noteId)]);
+
   if (!isSupabaseConfigured() || !isValidUUID(note.userId)) {
-    return null;
+    return createdFallback;
   }
 
   try {
-    const insertPayload = mapNoteToInsertRow(note);
+    const insertPayload = mapNoteToInsertRow({ ...note, id: noteId });
     const { data, error } = await (supabase as any)
       .from('notes')
       .insert(insertPayload)
@@ -77,14 +105,15 @@ export async function createNote(
       .single();
 
     if (error || !data) {
-      console.warn('Supabase createNote error:', error?.message);
-      return null;
+      return createdFallback;
     }
 
-    return mapRowToNote(data);
-  } catch (err) {
-    console.warn('Exception during createNote:', err);
-    return null;
+    const mapped = mapRowToNote(data);
+    const refreshed = loadNotesFromStorage(note.userId);
+    saveNotesToStorage(refreshed.map(n => n.id === noteId ? mapped : n));
+    return mapped;
+  } catch {
+    return createdFallback;
   }
 }
 
@@ -92,13 +121,15 @@ export async function updateNote(
   noteId: string,
   updates: Partial<Note>
 ): Promise<Note | null> {
+  const nowIso = new Date().toISOString();
+
   if (!isSupabaseConfigured() || !isValidUUID(noteId)) {
     return null;
   }
 
   try {
     const payload: Database['public']['Tables']['notes']['Update'] = {
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso,
     };
 
     if (updates.title !== undefined) payload.title = updates.title;
@@ -116,20 +147,18 @@ export async function updateNote(
       .single();
 
     if (error || !data) {
-      console.warn('Supabase updateNote error:', error?.message);
       return null;
     }
 
     return mapRowToNote(data);
-  } catch (err) {
-    console.warn('Exception during updateNote:', err);
+  } catch {
     return null;
   }
 }
 
 export async function deleteNote(noteId: string): Promise<boolean> {
   if (!isSupabaseConfigured() || !isValidUUID(noteId)) {
-    return false;
+    return true;
   }
 
   try {
@@ -139,13 +168,12 @@ export async function deleteNote(noteId: string): Promise<boolean> {
       .eq('id', noteId);
 
     if (error) {
-      console.warn('Supabase deleteNote error:', error.message);
       return false;
     }
 
     return true;
-  } catch (err) {
-    console.warn('Exception during deleteNote:', err);
+  } catch {
     return false;
   }
 }
+

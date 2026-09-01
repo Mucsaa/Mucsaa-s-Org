@@ -178,9 +178,9 @@ export const NotesView: React.FC<NotesViewProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 pb-24 min-h-[75vh]">
+    <div className="w-full max-w-6xl mx-auto space-y-4 pb-24 min-h-[75vh] overflow-x-hidden min-w-0">
       {/* Top Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#1D1A16] border border-orange-100/90 dark:border-amber-950/70 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#1D1A16] border border-orange-100/90 dark:border-amber-950/70 shadow-xs w-full min-w-0">
         <div className="flex items-center gap-3">
           {onBackToHome && (
             <button

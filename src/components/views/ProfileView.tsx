@@ -323,9 +323,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-24 max-w-4xl mx-auto">
+    <div className="w-full max-w-4xl mx-auto space-y-5 sm:space-y-6 pb-24 overflow-x-hidden min-w-0">
       {/* Profile Header Card */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-[#1D1A16] border border-orange-100/90 dark:border-amber-950/70 shadow-xs flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
+      <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#1D1A16] border border-orange-100/90 dark:border-amber-950/70 shadow-xs flex flex-col sm:flex-row items-center sm:items-start justify-between gap-5 sm:gap-6 w-full min-w-0">
         <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
           <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center text-3xl font-black shadow-lg shadow-orange-500/20">
             {user.name.charAt(0).toUpperCase()}

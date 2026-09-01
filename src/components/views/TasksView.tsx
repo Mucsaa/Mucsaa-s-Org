@@ -106,9 +106,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
   }, [tasks, tabFilter, searchQuery, selectedCategory, selectedPriority, sortBy, today, tomorrow]);
 
   return (
-    <div className="space-y-5 pb-24 max-w-4xl mx-auto">
+    <div className="w-full max-w-4xl mx-auto space-y-4 sm:space-y-5 pb-24 overflow-x-hidden min-w-0">
       {/* Header & Search Bar */}
-      <div className="bg-white dark:bg-[#1D1A16] p-4 sm:p-6 rounded-3xl border border-orange-100/90 dark:border-amber-950/70 shadow-xs space-y-4">
+      <div className="bg-white dark:bg-[#1D1A16] p-4 sm:p-6 rounded-3xl border border-orange-100/90 dark:border-amber-950/70 shadow-xs space-y-4 w-full min-w-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100 font-['Outfit',sans-serif]">
@@ -122,7 +122,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
           <button
             type="button"
             onClick={onOpenNewTaskModal}
-            className="self-start sm:self-auto px-4 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 text-white text-xs font-bold shadow-md shadow-orange-500/25 transition-all flex items-center gap-2"
+            className="self-start sm:self-auto px-4 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 text-white text-xs font-bold shadow-md shadow-orange-500/25 transition-all flex items-center gap-2 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Nova Tarefa
@@ -152,7 +152,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
       </div>
 
       {/* Tabs Filter Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-bold">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-bold no-scrollbar w-full min-w-0">
         <button
           type="button"
           onClick={() => setTabFilter('today')}

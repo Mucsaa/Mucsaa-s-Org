@@ -57,38 +57,38 @@ export const Navbar: React.FC<NavbarProps> = ({
   const themeConfig = THEME_COLORS[user.preferences.ninoColor] || THEME_COLORS.indigo;
 
   return (
-    <header className="sticky top-0 z-40 bg-[#FFFDF9]/85 dark:bg-[#1D1A16]/85 backdrop-blur-md border-b border-orange-100/70 dark:border-amber-950/40 transition-colors">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 w-full max-w-full overflow-x-hidden bg-[#FFFDF9]/90 dark:bg-[#1D1A16]/90 backdrop-blur-md border-b border-orange-100/70 dark:border-amber-950/40 transition-colors">
+      <div className="w-full max-w-6xl mx-auto px-2.5 sm:px-6 h-15 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3">
         {/* Brand Logo & Name */}
         <div
-          className="flex items-center gap-2.5 cursor-pointer select-none"
+          className="flex items-center gap-1.5 sm:gap-2.5 cursor-pointer select-none shrink-0"
           onClick={() => onTabSelect('home')}
         >
           <div
-            className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-md shadow-orange-500/25 font-extrabold text-lg transition-transform hover:scale-105"
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shadow-md shadow-orange-500/25 font-extrabold text-base sm:text-lg transition-transform hover:scale-105"
             style={{ backgroundColor: themeConfig.primary }}
           >
             P
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-slate-900 dark:text-slate-100 text-lg tracking-tight font-['Outfit',sans-serif]">
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1">
+              <span className="font-extrabold text-slate-900 dark:text-slate-100 text-base sm:text-lg tracking-tight font-['Outfit',sans-serif]">
                 Polaris
               </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300 border border-orange-200/60 dark:border-orange-800/40">
+              <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 sm:px-2 sm:py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300 border border-orange-200/60 dark:border-orange-800/40 hidden xs:inline-block">
                 Agenda
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden sm:block">
+            <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden md:block">
               Seu companheiro inteligente
             </p>
           </div>
         </div>
 
         {/* Center Live Clock, Streak & Polaris Level Pill */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Live Clock (Desktop only) */}
-          <div className="hidden md:flex px-3 py-1 rounded-xl bg-orange-50/80 dark:bg-amber-950/40 border border-orange-200/50 dark:border-amber-900/40 text-xs font-bold text-slate-800 dark:text-slate-200 items-center gap-1.5 shadow-xs">
+          <div className="hidden lg:flex px-3 py-1 rounded-xl bg-orange-50/80 dark:bg-amber-950/40 border border-orange-200/50 dark:border-amber-900/40 text-xs font-bold text-slate-800 dark:text-slate-200 items-center gap-1.5 shadow-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>{timeStr || '12:00'}</span>
           </div>
@@ -96,10 +96,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Streak Counter */}
           <div
             onClick={() => onTabSelect('stats')}
-            className="cursor-pointer px-2.5 sm:px-3 py-1 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center gap-1 hover:scale-105 transition-transform shadow-xs"
+            className="cursor-pointer px-2 sm:px-3 py-1 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-[11px] sm:text-xs font-bold flex items-center gap-1 hover:scale-105 transition-transform shadow-xs"
             title="Sequência de dias organizados consecutivos!"
           >
-            <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 animate-bounce" />
+            <Flame className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500 fill-amber-500 animate-bounce" />
             <span>{user.streakDays}d</span>
           </div>
 
@@ -108,10 +108,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={onOpenSanctuary}
-              className="cursor-pointer px-2.5 sm:px-3 py-1 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-black flex items-center gap-1.5 shadow-sm shadow-orange-500/20 hover:scale-105 active:scale-95 transition-all"
+              className="cursor-pointer px-2 sm:px-3 py-1 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] sm:text-xs font-black flex items-center gap-1 sm:gap-1.5 shadow-sm shadow-orange-500/20 hover:scale-105 active:scale-95 transition-all"
               title="Abrir Santuário, Loja e Missões do Polaris"
             >
-              <Sparkles className="w-3.5 h-3.5 fill-white text-white" />
+              <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-white text-white" />
               <span>Nv. {user.polaris?.level || 1}</span>
               <span className="opacity-75 hidden sm:inline">• {user.polaris?.stardust || 0} ✨</span>
             </button>
@@ -119,17 +119,17 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Right Actions: Focus Mode, Theme Toggle, Notifications, Profile Avatar */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Quick Focus Mode Button */}
           {onStartFocus && (
             <button
               type="button"
               onClick={onStartFocus}
-              className="px-2.5 sm:px-3 py-1.5 rounded-2xl bg-orange-100/90 dark:bg-amber-950/60 hover:bg-orange-200 dark:hover:bg-amber-900/60 text-orange-700 dark:text-amber-300 border border-orange-200/80 dark:border-amber-900/50 text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl sm:rounded-2xl bg-orange-100/90 dark:bg-amber-950/60 hover:bg-orange-200 dark:hover:bg-amber-900/60 text-orange-700 dark:text-amber-300 border border-orange-200/80 dark:border-amber-900/50 text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
               title="Modo Foco com Polaris"
             >
               <Zap className="w-3.5 h-3.5 fill-orange-500 text-orange-500" />
-              <span className="hidden sm:inline">Modo Foco</span>
+              <span className="hidden md:inline">Modo Foco</span>
             </button>
           )}
 
@@ -137,7 +137,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => onTabSelect(activeTab === 'notes' ? 'home' : 'notes')}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-2xl border text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer ${
+            className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl sm:rounded-2xl border text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer ${
               activeTab === 'notes'
                 ? 'bg-orange-500 text-white border-orange-600 shadow-orange-500/20'
                 : 'bg-orange-50/80 dark:bg-amber-950/40 hover:bg-orange-100 dark:hover:bg-amber-900/60 text-slate-700 dark:text-slate-200 border-orange-200/70 dark:border-amber-900/40'
@@ -145,7 +145,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             title="Minhas Notas"
           >
             <FileText className={`w-3.5 h-3.5 ${activeTab === 'notes' ? 'text-white' : 'text-orange-500'}`} />
-            <span className="hidden sm:inline">Notas</span>
+            <span className="hidden md:inline">Notas</span>
             {notesCount !== undefined && notesCount > 0 && (
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                 activeTab === 'notes' ? 'bg-white/20 text-white' : 'bg-orange-500 text-white'
@@ -159,7 +159,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onToggleTheme}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-orange-50/80 dark:hover:bg-amber-950/40 transition-colors"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-orange-50/80 dark:hover:bg-amber-950/40 transition-colors"
             title={isDark ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
             aria-label="Alternar tema"
           >
@@ -171,12 +171,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={onOpenNotifications}
-              className="relative p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-orange-50/80 dark:hover:bg-amber-950/40 transition-colors"
+              className="relative p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-orange-50/80 dark:hover:bg-amber-950/40 transition-colors"
               title="Notificações e Avisos do Polaris"
             >
               <Bell className="w-4 h-4" />
               {unreadNotificationsCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />
               )}
             </button>
           )}
@@ -185,16 +185,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => onTabSelect('profile')}
-            className={`flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-2xl border transition-all ${
+            className={`flex items-center gap-1.5 p-1 sm:pl-2 sm:pr-3 sm:py-1.5 rounded-xl sm:rounded-2xl border transition-all ${
               activeTab === 'profile'
                 ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 font-semibold'
                 : 'border-orange-100 dark:border-amber-950/60 hover:border-orange-200 text-slate-700 dark:text-slate-200 bg-white/70 dark:bg-[#1D1A16]/70'
             }`}
           >
-            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center text-[10px] sm:text-xs font-bold shadow-xs">
               {user.name.charAt(0)}
             </div>
-            <span className="text-xs font-medium hidden sm:inline">{user.name}</span>
+            <span className="text-xs font-medium hidden lg:inline">{user.name}</span>
           </button>
         </div>
       </div>
