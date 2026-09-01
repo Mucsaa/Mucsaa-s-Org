@@ -9,6 +9,7 @@ import {
   X,
   Volume2,
   VolumeX,
+  Volume1,
   BellOff,
   Sparkles,
   Flame,
@@ -20,6 +21,7 @@ import {
   RefreshCw,
   Award,
   Zap,
+  Music,
 } from 'lucide-react';
 import { Task, UserProfile, NinoExpression, NinoPersonality } from '../types';
 import { NinoAvatar } from './NinoAvatar';
@@ -28,6 +30,7 @@ import { CATEGORIES } from '../utils/constants';
 import { soundManager } from '../utils/sound';
 import { speechService } from '../utils/speech';
 import { getPolarisFocusMessage } from '../utils/ninoBrain';
+import { AMBIENT_SOUND_OPTIONS, AmbientSoundType } from '../utils/ambientAudio';
 
 interface FocusModeModalProps {
   isOpen: boolean;
@@ -80,7 +83,11 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
   const [secondsRemaining, setSecondsRemaining] = useState<number>(25 * 60);
   const [isActive, setIsActive] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
-  const [ambientSound, setAmbientSound] = useState<'none' | 'whitenoise' | 'waves'>('none');
+  
+  // Ambient Sound Engine State
+  const [ambientSound, setAmbientSound] = useState<AmbientSoundType>('none');
+  const [ambientVolume, setAmbientVolume] = useState<number>(0.75);
+  const [isAmbientPlaying, setIsAmbientPlaying] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
 
   // Stats gathered for summary
@@ -112,6 +119,8 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
       setTimeSpentSeconds(0);
       setTaskMarkedDone(activeTask ? activeTask.completed : false);
       setAmbientSound('none');
+      setIsAmbientPlaying(false);
+      soundManager.stopAmbient();
       
       const initialMessage = getPolarisFocusMessage({
         taskTitle: activeTask?.title || 'Foco Personalizado',
@@ -128,6 +137,14 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
       if (timerRef.current) clearInterval(timerRef.current);
     }
   }, [isOpen, activeTask, effectiveUserName]);
+
+  // Clean up audio when component unmounts
+  useEffect(() => {
+    return () => {
+      soundManager.stopAmbient();
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
 
   // Update Polaris quote when progress passes significant thresholds
   const updatePolarisMessage = useCallback(
@@ -196,7 +213,8 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
     updatePolarisMessage(secs, secs, false, false);
 
     if (ambientSound !== 'none') {
-      soundManager.startAmbient(ambientSound);
+      soundManager.startAmbient(ambientSound, ambientVolume);
+      setIsAmbientPlaying(true);
     }
   };
 
@@ -207,9 +225,11 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
     soundManager.playPop();
 
     if (nextPaused) {
-      soundManager.stopAmbient();
+      soundManager.pauseAmbient();
+      setIsAmbientPlaying(false);
     } else if (ambientSound !== 'none') {
-      soundManager.startAmbient(ambientSound);
+      soundManager.resumeAmbient();
+      setIsAmbientPlaying(true);
     }
 
     updatePolarisMessage(secondsRemaining, totalSeconds, nextPaused, false);
@@ -227,16 +247,40 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
   };
 
   // Switch Ambient Sound
-  const handleToggleAmbient = (sound: 'none' | 'whitenoise' | 'waves') => {
+  const handleToggleAmbient = (sound: AmbientSoundType) => {
     setAmbientSound(sound);
-    if (isActive && !isPaused) {
-      if (sound === 'none') {
-        soundManager.stopAmbient();
-      } else {
-        soundManager.startAmbient(sound);
-      }
+    soundManager.playPop();
+
+    if (sound === 'none') {
+      soundManager.stopAmbient();
+      setIsAmbientPlaying(false);
+    } else {
+      soundManager.startAmbient(sound, ambientVolume);
+      setIsAmbientPlaying(true);
+    }
+  };
+
+  // Toggle ambient play/pause directly
+  const handleToggleAmbientPlayPause = () => {
+    if (ambientSound === 'none') {
+      handleToggleAmbient('whitenoise');
+      return;
+    }
+
+    if (isAmbientPlaying) {
+      soundManager.pauseAmbient();
+      setIsAmbientPlaying(false);
+    } else {
+      soundManager.resumeAmbient();
+      setIsAmbientPlaying(true);
     }
     soundManager.playPop();
+  };
+
+  // Adjust volume
+  const handleVolumeChange = (newVol: number) => {
+    setAmbientVolume(newVol);
+    soundManager.setAmbientVolume(newVol);
   };
 
   // Session Completed naturally (timer hit 0)
@@ -244,6 +288,7 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
     setIsActive(false);
     setIsPaused(false);
     soundManager.stopAmbient();
+    setIsAmbientPlaying(false);
     soundManager.playFocusComplete();
     setStep('summary');
 
@@ -272,6 +317,7 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
   // Manually finish session and mark complete
   const handleFinishEarlyAndComplete = () => {
     soundManager.stopAmbient();
+    setIsAmbientPlaying(false);
     if (activeTask && !activeTask.completed) {
       if (onCompleteTask) onCompleteTask(activeTask);
       if (onCompleteSession) onCompleteSession(activeTask.id, Math.max(Math.round(timeSpentSeconds / 60), 1));
@@ -339,7 +385,10 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={() => {
-            if (step === 'setup' || step === 'summary') onClose();
+            if (step === 'setup' || step === 'summary') {
+              soundManager.stopAmbient();
+              onClose();
+            }
           }}
           className="fixed inset-0 bg-slate-950/80 backdrop-blur-xl transition-all"
         />
@@ -350,10 +399,10 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.93, y: 15 }}
           transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-          className="relative w-full max-w-2xl bg-[#FFFDF9] dark:bg-[#1A1612] rounded-3xl shadow-2xl border border-orange-200/90 dark:border-amber-950/80 overflow-hidden z-10 my-auto text-slate-800 dark:text-slate-100"
+          className="relative w-full max-w-2xl bg-[#FFFDF9] dark:bg-[#1A1612] rounded-3xl shadow-2xl border border-orange-200/90 dark:border-amber-950/80 overflow-hidden z-10 my-auto text-slate-800 dark:text-slate-100 max-h-[92vh] flex flex-col"
         >
           {/* Header Banner - Shows "Modo Foco & Silêncio Ativo" */}
-          <div className="px-5 sm:px-6 py-3.5 bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 text-white flex items-center justify-between shadow-xs">
+          <div className="px-5 sm:px-6 py-3.5 bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 text-white flex items-center justify-between shadow-xs shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
                 <Zap className="w-4 h-4 text-amber-200 fill-amber-200" />
@@ -377,9 +426,10 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
               type="button"
               onClick={() => {
                 soundManager.stopAmbient();
+                setIsAmbientPlaying(false);
                 onClose();
               }}
-              className="p-1.5 rounded-xl hover:bg-white/20 text-white/90 hover:text-white transition-colors"
+              className="p-1.5 rounded-xl hover:bg-white/20 text-white/90 hover:text-white transition-colors cursor-pointer"
               title="Fechar Modo Foco"
             >
               <X className="w-5 h-5" />
@@ -387,7 +437,7 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
           </div>
 
           {/* Body Section based on current step */}
-          <div className="p-5 sm:p-7">
+          <div className="p-5 sm:p-7 overflow-y-auto">
             {/* STEP 1: SETUP & CONFIGURATION */}
             {step === 'setup' && (
               <div className="space-y-6">
@@ -466,7 +516,7 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
                             setCustomMinutes('');
                             soundManager.playPop();
                           }}
-                          className={`p-3 rounded-2xl border text-center transition-all ${
+                          className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
                             isSelected
                               ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-[#2E241C] dark:to-[#241C15] shadow-xs ring-2 ring-orange-500/20'
                               : 'border-orange-100 dark:border-amber-950/70 bg-white dark:bg-[#1D1A16] hover:border-orange-200'
@@ -506,30 +556,84 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
                   </div>
                 </div>
 
-                {/* Ambient Sound Selection */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    Som Ambiente de Concentração
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'none', label: 'Silêncio' },
-                      { id: 'whitenoise', label: 'Ruído Branco' },
-                      { id: 'waves', label: 'Ondas Relax' },
-                    ].map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => handleToggleAmbient(s.id as 'none' | 'whitenoise' | 'waves')}
-                        className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all ${
-                          ambientSound === s.id
-                            ? 'border-orange-500 bg-orange-50 dark:bg-amber-950/50 text-orange-700 dark:text-orange-300 shadow-xs'
-                            : 'border-orange-100 dark:border-amber-950/70 bg-white dark:bg-[#1D1A16] text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
+                {/* Ambient Sound Selection Suite */}
+                <div className="space-y-3 p-4 rounded-2xl bg-orange-50/40 dark:bg-[#201A15] border border-orange-100 dark:border-amber-950/70">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                      <Music className="w-3.5 h-3.5 text-orange-500" />
+                      Som Ambiente de Concentração
+                    </label>
+
+                    {/* Play/Pause & Volume Control */}
+                    {ambientSound !== 'none' && (
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        <button
+                          type="button"
+                          onClick={handleToggleAmbientPlayPause}
+                          className="px-2 py-1 rounded-lg bg-orange-100 dark:bg-amber-950/80 text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-amber-900 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                          title={isAmbientPlaying ? 'Pausar som ambiente' : 'Tocar som ambiente'}
+                        >
+                          {isAmbientPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 fill-current" />}
+                          <span>{isAmbientPlaying ? 'Pausar' : 'Tocar'}</span>
+                        </button>
+
+                        <div className="flex items-center gap-1.5 bg-white/70 dark:bg-[#1A1612]/70 px-2 py-1 rounded-lg border border-orange-100 dark:border-amber-950">
+                          {ambientVolume === 0 ? (
+                            <VolumeX className="w-3.5 h-3.5 text-slate-400" />
+                          ) : ambientVolume < 0.5 ? (
+                            <Volume1 className="w-3.5 h-3.5 text-orange-500" />
+                          ) : (
+                            <Volume2 className="w-3.5 h-3.5 text-orange-500" />
+                          )}
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value={ambientVolume}
+                            onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                            className="w-16 sm:w-20 h-1.5 accent-orange-500 bg-orange-200 dark:bg-amber-950 rounded-lg cursor-pointer"
+                            title={`Volume: ${Math.round(ambientVolume * 100)}%`}
+                          />
+                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 w-6 text-right">
+                            {Math.round(ambientVolume * 100)}%
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sound Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {AMBIENT_SOUND_OPTIONS.map((s) => {
+                      const isSelected = ambientSound === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => handleToggleAmbient(s.id)}
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between min-h-[58px] ${
+                            isSelected
+                              ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-amber-950/80 dark:to-orange-950/60 text-orange-700 dark:text-orange-300 shadow-xs ring-1 ring-orange-500/30'
+                              : 'border-orange-100 dark:border-amber-950/70 bg-white dark:bg-[#1D1A16] text-slate-600 dark:text-slate-400 hover:border-orange-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-base">{s.icon}</span>
+                            {isSelected && s.id !== 'none' && (
+                              <span className="flex h-2 w-2 relative">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <span className="block text-xs font-bold truncate">{s.label}</span>
+                            <span className="text-[9px] opacity-75 block truncate">{s.description}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -557,7 +661,7 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
                 <button
                   type="button"
                   onClick={handleStartFocus}
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-98 text-white font-black text-sm sm:text-base shadow-lg shadow-orange-500/25 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-98 text-white font-black text-sm sm:text-base shadow-lg shadow-orange-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Play className="w-5 h-5 fill-white" />
                   Iniciar Modo Foco ({customMinutes || selectedDuration} min)
@@ -615,6 +719,65 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
                   </div>
                 </div>
 
+                {/* Live Ambient Sound Control Bar during Active Focus */}
+                <div className="w-full p-3 rounded-2xl bg-white dark:bg-[#1D1A16] border border-orange-200/80 dark:border-amber-900/50 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={handleToggleAmbientPlayPause}
+                      className="p-2 rounded-xl bg-orange-100 dark:bg-amber-950/70 text-orange-600 dark:text-orange-400 hover:bg-orange-200 transition-colors cursor-pointer"
+                      title={isAmbientPlaying ? 'Pausar som ambiente' : 'Tocar som ambiente'}
+                    >
+                      {isAmbientPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </button>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] uppercase font-bold text-slate-400">Som de Fundo:</span>
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          {AMBIENT_SOUND_OPTIONS.find((s) => s.id === ambientSound)?.label || 'Silêncio'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 mt-0.5 overflow-x-auto pb-1 max-w-full">
+                        {AMBIENT_SOUND_OPTIONS.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => handleToggleAmbient(s.id)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
+                              ambientSound === s.id
+                                ? 'bg-orange-500 text-white shadow-xs'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-orange-100 dark:hover:bg-amber-950/60'
+                            }`}
+                          >
+                            <span>{s.icon}</span>
+                            <span>{s.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Volume Slider in Running Bar */}
+                  {ambientSound !== 'none' && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Volume2 className="w-3.5 h-3.5 text-orange-500" />
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={ambientVolume}
+                        onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                        className="w-16 sm:w-20 h-1.5 accent-orange-500 bg-orange-100 dark:bg-amber-950 rounded-lg cursor-pointer"
+                        title={`Volume: ${Math.round(ambientVolume * 100)}%`}
+                      />
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 w-6">
+                        {Math.round(ambientVolume * 100)}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 {/* Polaris Motivational Speech Bubble Card */}
                 <div className="w-full p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-orange-50/80 via-amber-50/50 to-white dark:from-[#251E18] dark:via-[#1E1914] dark:to-[#171310] border border-orange-200/80 dark:border-amber-900/50 shadow-xs flex items-center gap-4">
                   <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0">
@@ -637,7 +800,7 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
                       <button
                         type="button"
                         onClick={handleRefreshQuote}
-                        className="text-[11px] text-orange-600 dark:text-orange-400 font-bold hover:underline flex items-center gap-1"
+                        className="text-[11px] text-orange-600 dark:text-orange-400 font-bold hover:underline flex items-center gap-1 cursor-pointer"
                         title="Nova frase motivacional"
                       >
                         <RefreshCw className="w-3 h-3" />
@@ -656,7 +819,7 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
                   <button
                     type="button"
                     onClick={handleTogglePause}
-                    className={`px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs ${
+                    className={`px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs cursor-pointer ${
                       isPaused
                         ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'
                         : 'bg-white dark:bg-[#1D1A16] border border-orange-200 dark:border-amber-900 text-slate-700 dark:text-slate-200 hover:border-orange-400'
@@ -670,7 +833,7 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
                   <button
                     type="button"
                     onClick={handleAddFiveMinutes}
-                    className="px-4 py-2.5 rounded-2xl border border-orange-200 dark:border-amber-900 bg-white dark:bg-[#1D1A16] hover:border-orange-400 text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-xs"
+                    className="px-4 py-2.5 rounded-2xl border border-orange-200 dark:border-amber-900 bg-white dark:bg-[#1D1A16] hover:border-orange-400 text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
                   >
                     <Plus className="w-4 h-4 text-orange-500" />
                     +5 min
@@ -680,7 +843,7 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
                   <button
                     type="button"
                     onClick={handleFinishEarlyAndComplete}
-                    className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-orange-500/20 transition-all"
+                    className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-orange-500/20 transition-all cursor-pointer"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     Concluir Tarefa & Finalizar
@@ -771,7 +934,7 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
                       <button
                         type="button"
                         onClick={handleMarkTaskDoneInSummary}
-                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all"
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
                       >
                         <CheckCircle2 className="w-4 h-4" />
                         Marcar como Concluída
@@ -792,18 +955,19 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
                     onClick={() => {
                       setStep('setup');
                     }}
-                    className="flex-1 py-3 rounded-2xl border border-orange-200 dark:border-amber-900 bg-white dark:bg-[#1D1A16] hover:bg-orange-50/60 dark:hover:bg-amber-950/40 text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm transition-all"
+                    className="flex-1 py-3 rounded-2xl border border-orange-200 dark:border-amber-900 bg-white dark:bg-[#1D1A16] hover:bg-orange-50/60 dark:hover:bg-amber-950/40 text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm transition-all cursor-pointer"
                   >
                     Fazer Nova Sessão de Foco
                   </button>
 
-                  <button
+                    <button
                     type="button"
                     onClick={() => {
                       soundManager.stopAmbient();
+                      setIsAmbientPlaying(false);
                       onClose();
                     }}
-                    className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md shadow-orange-500/20 transition-all flex items-center justify-center gap-2"
+                    className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md shadow-orange-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     Voltar para a Agenda
                     <ArrowRight className="w-4 h-4" />
@@ -817,3 +981,4 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
     </AnimatePresence>
   );
 };
+

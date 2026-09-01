@@ -162,17 +162,111 @@ export function getMonthMatrix(year: number, monthIndex: number): { dateStr: str
   return matrix;
 }
 
+export function getDaysDifference(earlierDateStr: string, laterDateStr: string): number {
+  if (!earlierDateStr || !laterDateStr) return 0;
+  const [y1, m1, d1] = earlierDateStr.split('-').map(Number);
+  const [y2, m2, d2] = laterDateStr.split('-').map(Number);
+  const utc1 = Date.UTC(y1, m1 - 1, d1);
+  const utc2 = Date.UTC(y2, m2 - 1, d2);
+  const msPerDay = 1000 * 60 * 60 * 24;
+  return Math.max(0, Math.floor((utc2 - utc1) / msPerDay));
+}
+
+export interface OverdueDelayInfo {
+  isOverdue: boolean;
+  daysOverdue: number;
+  hoursOverdue: number;
+  minutesOverdue: number;
+  delayText: string;
+  urgency: 'critical' | 'high' | 'medium';
+}
+
 export function isTaskOverdue(task: { date: string; time?: string; completed: boolean }): boolean {
-  if (task.completed) return false;
+  if (!task || task.completed) return false;
   const today = getTodayString();
+  
+  // Date is earlier than today
   if (task.date < today) return true;
+  
+  // Date is today with a specific scheduled time
   if (task.date === today && task.time) {
     const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const [h, m] = task.time.split(':').map(Number);
-    const taskDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
-    return taskDate.getTime() < now.getTime();
+    const taskMinutes = (h || 0) * 60 + (m || 0);
+    return taskMinutes < currentMinutes;
   }
+  
   return false;
+}
+
+export function getOverdueDelayInfo(task: { date: string; time?: string; completed: boolean }): OverdueDelayInfo {
+  if (!task || task.completed) {
+    return {
+      isOverdue: false,
+      daysOverdue: 0,
+      hoursOverdue: 0,
+      minutesOverdue: 0,
+      delayText: 'Em dia',
+      urgency: 'medium',
+    };
+  }
+
+  const today = getTodayString();
+  const now = new Date();
+
+  // 1. Task from previous days (date < today)
+  if (task.date < today) {
+    const days = getDaysDifference(task.date, today);
+    const dayCount = Math.max(1, days);
+    const delayText = dayCount === 1 ? 'Atrasada há 1 dia' : `Atrasada há ${dayCount} dias`;
+    const urgency: 'critical' | 'high' | 'medium' = dayCount >= 3 ? 'critical' : 'high';
+
+    return {
+      isOverdue: true,
+      daysOverdue: dayCount,
+      hoursOverdue: dayCount * 24,
+      minutesOverdue: dayCount * 24 * 60,
+      delayText,
+      urgency,
+    };
+  }
+
+  // 2. Task from today with past time (date === today)
+  if (task.date === today && task.time) {
+    const [h, m] = task.time.split(':').map(Number);
+    const taskMinutes = (h || 0) * 60 + (m || 0);
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    if (taskMinutes < currentMinutes) {
+      const diffMinutes = currentMinutes - taskMinutes;
+      let delayText = '';
+      if (diffMinutes < 60) {
+        delayText = `Atrasada há ${diffMinutes} min`;
+      } else {
+        const hours = Math.floor(diffMinutes / 60);
+        delayText = hours === 1 ? 'Atrasada há 1 hora' : `Atrasada há ${hours} horas`;
+      }
+
+      return {
+        isOverdue: true,
+        daysOverdue: 0,
+        hoursOverdue: Math.floor(diffMinutes / 60),
+        minutesOverdue: diffMinutes,
+        delayText,
+        urgency: diffMinutes >= 180 ? 'high' : 'medium',
+      };
+    }
+  }
+
+  return {
+    isOverdue: false,
+    daysOverdue: 0,
+    hoursOverdue: 0,
+    minutesOverdue: 0,
+    delayText: 'No prazo',
+    urgency: 'medium',
+  };
 }
 
 export function getMinutesUntil(dateStr: string, timeStr?: string): number | null {

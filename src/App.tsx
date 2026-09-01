@@ -13,6 +13,7 @@ import {
   UserProfile,
   NinoDialogue,
   NinoExpression,
+  NinoThemeColor,
   LevelUpEvent,
 } from './types';
 import {
@@ -32,6 +33,8 @@ import {
   getTodayString,
   getMinutesUntil,
   isNightTime,
+  isTaskOverdue,
+  getOverdueDelayInfo,
 } from './utils/dateUtils';
 import { generateNinoGreeting, getNinoInteractiveQuote } from './utils/ninoBrain';
 import { soundManager } from './utils/sound';
@@ -74,11 +77,14 @@ import { NotificationToast, ActiveNotification } from './components/Notification
 import { PolarisSanctuaryModal } from './components/PolarisSanctuaryModal';
 import { PolarisLevelUpModal } from './components/PolarisLevelUpModal';
 import { NotificationPermissionModal } from './components/NotificationPermissionModal';
+import { GlobalSearchModal } from './components/GlobalSearchModal';
 import {
   registerPolarisServiceWorker,
   isPushNotificationSupported,
   getNotificationPermissionState,
   subscribeUserToPush,
+  sendDeviceOverdueNotification,
+  sendDeviceApproachingTaskNotification,
 } from './utils/pushNotifications';
 
 export default function App() {
@@ -116,10 +122,24 @@ export default function App() {
   const [levelUpEvent, setLevelUpEvent] = useState<LevelUpEvent | null>(null);
   const [showPushPromptModal, setShowPushPromptModal] = useState(false);
   const [pushPromptLoading, setPushPromptLoading] = useState(false);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [targetNoteId, setTargetNoteId] = useState<string | null>(null);
 
   // Auto register Service Worker for PWA and Web Push
   useEffect(() => {
     registerPolarisServiceWorker();
+  }, []);
+
+  // Global Keyboard Shortcut: Ctrl+K or Cmd+K to open Search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Handle opening task from Notification click (via URL ?taskId=... or Service Worker postMessage)
@@ -331,52 +351,111 @@ export default function App() {
     updateNinoState();
   }, [updateNinoState]);
 
-  // Periodic Reminder Checker (checks if task is approaching within reminder window)
+  // Periodic Reminder & Overdue Alert Checker
   useEffect(() => {
-    const checkApproachingReminders = () => {
+    const checkRemindersAndOverdue = () => {
       // SILENCE ALL NOTIFICATIONS WHEN FOCUS MODE IS ACTIVE OR NO USER
       if (!user || focusModalOpen) {
         return;
       }
 
       const today = getTodayString();
-      const pendingToday = tasks.filter((t) => t.date === today && !t.completed && t.time);
+      const prefs = user.preferences || {};
+      const taskRemindersOn = prefs.taskRemindersEnabled ?? true;
+      const overdueAlertsOn = prefs.overdueAlertsEnabled ?? true;
+      const advanceRemindersOn = prefs.advanceRemindersEnabled ?? true;
 
-      pendingToday.forEach((task) => {
-        const mins = getMinutesUntil(task.date, task.time);
-        if (mins !== null && mins > 0 && mins <= 15) {
-          // Check if already notified
-          const notifId = `notif-${task.id}-${task.time}`;
-          if (!activeNotifications.some((n) => n.id === notifId)) {
-            soundManager.playReminderAlert();
-            const message =
-              user.preferences?.ninoPersonality === 'divertido'
-                ? `Ei! Seu compromisso "${task.title}" começa daqui a ${mins} minutos! ⚡`
-                : user.preferences?.ninoPersonality === 'profissional'
-                ? `Lembrete pontual: "${task.title}" agendado para ${task.time}.`
-                : `Atenção! Sua tarefa "${task.title}" está chegando. Foco total! 🔥`;
+      // 1. Approaching Task Reminders (Before scheduled time)
+      if (taskRemindersOn && advanceRemindersOn) {
+        const pendingToday = tasks.filter((t) => t.date === today && !t.completed && t.time);
+
+        pendingToday.forEach((task) => {
+          const mins = getMinutesUntil(task.date, task.time);
+          if (mins !== null && mins > 0 && mins <= 15) {
+            const notifId = `reminder-${task.id}-${task.time}`;
+            if (!activeNotifications.some((n) => n.id === notifId)) {
+              if (prefs.soundEffectsEnabled ?? true) {
+                soundManager.playReminderAlert();
+              }
+
+              const message =
+                prefs.ninoPersonality === 'divertido'
+                  ? `Ei! Seu compromisso "${task.title}" começa daqui a ${mins} minutos! ⚡`
+                  : prefs.ninoPersonality === 'profissional'
+                  ? `Lembrete pontual: "${task.title}" agendado para ${task.time}.`
+                  : `Atenção! Sua tarefa "${task.title}" está chegando. Foco total! 🔥`;
+
+              setActiveNotifications((prev) => [
+                ...prev,
+                {
+                  id: notifId,
+                  task,
+                  message,
+                  timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                },
+              ]);
+
+              // Dispatch real device Web Push notification
+              if (prefs.browserNotificationsEnabled) {
+                sendDeviceApproachingTaskNotification(task, mins).catch(() => {});
+              }
+
+              if (prefs.voiceEnabled) {
+                speechService.speak(message);
+              }
+            }
+          }
+        });
+      }
+
+      // 2. Real Overdue Task Alerts
+      if (overdueAlertsOn) {
+        const overdueList = tasks.filter((t) => !t.completed && isTaskOverdue(t));
+
+        overdueList.forEach((task) => {
+          const delayInfo = getOverdueDelayInfo(task);
+          if (!delayInfo.isOverdue) return;
+
+          const overdueNotifId = `overdue-${task.id}-${task.date}-${task.time || 'all-day'}`;
+          if (!activeNotifications.some((n) => n.id === overdueNotifId)) {
+            const message = `⚠️ Atenção: A tarefa "${task.title}" está ${delayInfo.delayText.toLowerCase()}.`;
 
             setActiveNotifications((prev) => [
               ...prev,
               {
-                id: notifId,
+                id: overdueNotifId,
                 task,
                 message,
                 timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
               },
             ]);
 
-            if (user.preferences?.voiceEnabled) {
-              speechService.speak(message);
+            // Dispatch real device Web Push notification
+            if (prefs.browserNotificationsEnabled) {
+              sendDeviceOverdueNotification(task, delayInfo.delayText).catch(() => {});
             }
           }
-        }
-      });
+        });
+      }
     };
 
-    checkApproachingReminders();
-    const interval = setInterval(checkApproachingReminders, 45000);
-    return () => clearInterval(interval);
+    checkRemindersAndOverdue();
+    const interval = setInterval(checkRemindersAndOverdue, 30000);
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        checkRemindersAndOverdue();
+      }
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
   }, [tasks, activeNotifications, user?.preferences, focusModalOpen]);
 
   // Toggle Task Completion with Celebration Cues & Polaris XP Rewards
@@ -492,6 +571,20 @@ export default function App() {
     });
   };
 
+  const handleEquipOutfit = (id: string) => {
+    soundManager.playPop();
+    setUser((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        polaris: {
+          ...prev.polaris,
+          equippedOutfit: id,
+        },
+      };
+    });
+  };
+
   const handleEquipAura = (id: string) => {
     soundManager.playPop();
     setUser((prev) => {
@@ -506,22 +599,40 @@ export default function App() {
     });
   };
 
+  const handleEquipColor = (color: NinoThemeColor) => {
+    soundManager.playPop();
+    setUser((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        preferences: {
+          ...prev.preferences,
+          ninoColor: color,
+        },
+        polaris: {
+          ...prev.polaris,
+          equippedColor: color,
+        },
+      };
+    });
+  };
+
   const handleUnlockItem = (
     idOrType: string,
     costOrId: number | string,
-    typeOrCost?: 'accessory' | 'aura' | number
+    typeOrCost?: 'accessory' | 'outfit' | 'aura' | 'color' | number
   ) => {
     if (!user) return;
     let id: string;
     let cost: number;
-    let type: 'accessory' | 'aura';
+    let type: 'accessory' | 'outfit' | 'aura' | 'color';
 
     if (typeof idOrType === 'string' && typeof costOrId === 'number') {
       id = idOrType;
       cost = costOrId;
-      type = (typeOrCost as 'accessory' | 'aura') || 'accessory';
+      type = (typeOrCost as 'accessory' | 'outfit' | 'aura' | 'color') || 'accessory';
     } else {
-      type = (idOrType as 'accessory' | 'aura') || 'accessory';
+      type = (idOrType as 'accessory' | 'outfit' | 'aura' | 'color') || 'accessory';
       id = String(costOrId);
       cost = Number(typeOrCost) || 0;
     }
@@ -540,19 +651,28 @@ export default function App() {
 
     setUser((prev) => {
       if (!prev) return null;
-      const isAcc = type === 'accessory';
       const updatedUnlocked = Array.from(
         new Set([...(prev.polaris?.unlockedItems || []), id])
       );
 
+      const isAcc = type === 'accessory';
+      const isOutfit = type === 'outfit';
+      const isAura = type === 'aura';
+      const isColor = type === 'color';
+
       return {
         ...prev,
+        preferences: isColor
+          ? { ...prev.preferences, ninoColor: id as NinoThemeColor }
+          : prev.preferences,
         polaris: {
           ...prev.polaris,
           stardust: Math.max(0, (prev.polaris?.stardust || 0) - cost),
           unlockedItems: updatedUnlocked,
           equippedAccessory: isAcc ? id : prev.polaris?.equippedAccessory,
-          equippedAura: !isAcc ? id : prev.polaris?.equippedAura,
+          equippedOutfit: isOutfit ? id : prev.polaris?.equippedOutfit,
+          equippedAura: isAura ? id : prev.polaris?.equippedAura,
+          equippedColor: isColor ? (id as NinoThemeColor) : prev.polaris?.equippedColor,
         },
       };
     });
@@ -942,6 +1062,28 @@ export default function App() {
     }
   };
 
+  const handleSelectTaskFromSearch = (task: Task) => {
+    setSelectedDate(task.date);
+    setEditingTask(task);
+    setModalInitialDate(task.date);
+    setModalInitialTime(task.time);
+    setTaskModalOpen(true);
+  };
+
+  const handleSelectNoteFromSearch = (note: Note) => {
+    setTargetNoteId(note.id);
+    setActiveTab('notes');
+  };
+
+  const handleOpenNewNoteFromSearch = async (initialTitle?: string) => {
+    if (!user) return;
+    const newNote = await handleCreateNote(initialTitle?.trim() || 'Nova Nota', '');
+    if (newNote) {
+      setTargetNoteId(newNote.id);
+      setActiveTab('notes');
+    }
+  };
+
   if (isCheckingSession) {
     return (
       <div className="min-h-screen w-full bg-[#FDFBF7] dark:bg-[#15120E] flex flex-col items-center justify-center gap-3">
@@ -982,6 +1124,7 @@ export default function App() {
         activeTab={activeTab}
         onStartFocus={() => handleStartFocusTask()}
         onOpenSanctuary={() => setSanctuaryModalOpen(true)}
+        onOpenSearch={() => setSearchModalOpen(true)}
       />
 
       {/* Real-time Notification Popups - Silenced when Focus Mode is Active */}
@@ -1087,6 +1230,7 @@ export default function App() {
                 onCreateNote={handleCreateNote}
                 onUpdateNote={handleUpdateNote}
                 onDeleteNote={handleDeleteNote}
+                initialSelectedNoteId={targetNoteId}
               />
             </motion.div>
           )}
@@ -1150,6 +1294,24 @@ export default function App() {
         personality={user.preferences.ninoPersonality}
       />
 
+      {/* Global Search Modal (Ctrl+K or Lupa) */}
+      <GlobalSearchModal
+        isOpen={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        tasks={tasks}
+        notes={notes}
+        user={user}
+        onSelectTask={handleSelectTaskFromSearch}
+        onSelectNote={handleSelectNoteFromSearch}
+        onOpenNewTaskModal={(initialTitle) => {
+          setEditingTask(null);
+          setModalInitialDate(selectedDate);
+          setModalInitialTime(undefined);
+          setTaskModalOpen(true);
+        }}
+        onOpenNewNote={handleOpenNewNoteFromSearch}
+      />
+
       {/* Auth / Account Switcher Modal */}
       <AuthModal
         isOpen={authModalOpen}
@@ -1178,10 +1340,13 @@ export default function App() {
         onClose={() => setSanctuaryModalOpen(false)}
         user={user}
         tasks={tasks}
+        onUpdateUser={(updated) => setUser(updated)}
         onClaimMission={handleClaimMission}
         onCareAction={handleCareAction}
         onEquipAccessory={handleEquipAccessory}
+        onEquipOutfit={handleEquipOutfit}
         onEquipAura={handleEquipAura}
+        onEquipColor={handleEquipColor}
         onUnlockItem={handleUnlockItem}
       />
 

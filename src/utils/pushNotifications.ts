@@ -284,3 +284,84 @@ export async function testDevicePushNotification(
     return { success: false, error: err?.message || 'Falha ao exibir notificação pelo Service Worker.' };
   }
 }
+
+/**
+ * Dispara uma notificação real de alerta de tarefa atrasada no dispositivo
+ */
+export async function sendDeviceOverdueNotification(
+  task: Task,
+  delayText: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!isPushNotificationSupported()) {
+    return { success: false, error: 'Web Push não suportado.' };
+  }
+
+  const perm = getNotificationPermissionState();
+  if (perm !== 'granted') {
+    return { success: false, error: 'Permissão não concedida.' };
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const notificationOptions: any = {
+      body: `"${task.title}" está ${delayText.toLowerCase()}. Toque para abrir, adiar ou concluir.`,
+      icon: '/icon.svg',
+      badge: '/icon.svg',
+      tag: `polaris-overdue-${task.id}-${task.date}`,
+      renotify: true,
+      vibrate: [200, 100, 200],
+      data: {
+        taskId: task.id,
+        url: `/?taskId=${task.id}`,
+        timestamp: Date.now(),
+      },
+    };
+
+    await registration.showNotification('⚠️ Tarefa Atrasada • Polaris Agenda', notificationOptions);
+    return { success: true };
+  } catch (err: any) {
+    console.warn('Erro ao disparar notificação de tarefa atrasada:', err);
+    return { success: false, error: err?.message };
+  }
+}
+
+/**
+ * Dispara uma notificação de lembrete antes do horário agendado
+ */
+export async function sendDeviceApproachingTaskNotification(
+  task: Task,
+  minutesUntil: number
+): Promise<{ success: boolean; error?: string }> {
+  if (!isPushNotificationSupported()) {
+    return { success: false, error: 'Web Push não suportado.' };
+  }
+
+  const perm = getNotificationPermissionState();
+  if (perm !== 'granted') {
+    return { success: false, error: 'Permissão não concedida.' };
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const timeInfo = task.time ? ` às ${task.time}` : '';
+    const notificationOptions: any = {
+      body: `Sua tarefa "${task.title}" está programada para daqui a ${minutesUntil} min${timeInfo}. Foco total!`,
+      icon: '/icon.svg',
+      badge: '/icon.svg',
+      tag: `polaris-reminder-${task.id}-${task.time || 'all-day'}`,
+      renotify: true,
+      vibrate: [100, 50, 100],
+      data: {
+        taskId: task.id,
+        url: `/?taskId=${task.id}`,
+        timestamp: Date.now(),
+      },
+    };
+
+    await registration.showNotification('⏰ Lembrete de Tarefa • Polaris Agenda', notificationOptions);
+    return { success: true };
+  } catch (err: any) {
+    console.warn('Erro ao disparar notificação de lembrete de tarefa:', err);
+    return { success: false, error: err?.message };
+  }
+}

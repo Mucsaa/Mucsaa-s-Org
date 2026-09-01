@@ -1,3 +1,5 @@
+import { ambientAudioEngine, AmbientSoundType } from './ambientAudio';
+
 /**
  * Web Audio API synthesizer for friendly, non-intrusive sound cues
  */
@@ -19,7 +21,7 @@ class SoundEffects {
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      this.ctx.resume().catch(() => {});
     }
     return this.ctx;
   }
@@ -226,55 +228,35 @@ class SoundEffects {
     }
   }
 
-  // Ambient sound synthesizer
-  private ambientSource: AudioNode | null = null;
-  private ambientGain: GainNode | null = null;
+  /**
+   * Ambient sound engine bridge
+   */
+  public startAmbient(type: AmbientSoundType, volume?: number): void {
+    ambientAudioEngine.play(type, volume);
+  }
 
-  public startAmbient(type: 'whitenoise' | 'waves' | 'clock'): void {
-    this.stopAmbient();
-    const ctx = this.getContext();
-    if (!ctx) return;
+  public setAmbientVolume(volume: number): void {
+    ambientAudioEngine.setVolume(volume);
+  }
 
-    try {
-      const bufferSize = ctx.sampleRate * 2;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
+  public pauseAmbient(): void {
+    ambientAudioEngine.pause();
+  }
 
-      if (type === 'whitenoise') {
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = (Math.random() * 2 - 1) * 0.08;
-        }
-      } else if (type === 'waves') {
-        let lastOut = 0.0;
-        for (let i = 0; i < bufferSize; i++) {
-          const white = Math.random() * 2 - 1;
-          data[i] = (lastOut + 0.02 * white) / 1.02;
-          lastOut = data[i];
-          data[i] *= 0.5; // Soft pink/brown noise
-        }
-      }
+  public resumeAmbient(): void {
+    ambientAudioEngine.resume();
+  }
 
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-      noise.loop = true;
+  public stopAmbient(): void {
+    ambientAudioEngine.stop();
+  }
 
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(type === 'waves' ? 400 : 800, ctx.currentTime);
+  public getAmbientType(): AmbientSoundType {
+    return ambientAudioEngine.getCurrentType();
+  }
 
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.05, ctx.currentTime);
-
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-
-      noise.start();
-      this.ambientSource = noise;
-      this.ambientGain = gain;
-    } catch {
-      // Ignore
-    }
+  public isAmbientPlaying(): boolean {
+    return ambientAudioEngine.getIsPlaying();
   }
 
   public playError(): void {
@@ -303,17 +285,7 @@ class SoundEffects {
       // Ignore
     }
   }
-
-  public stopAmbient(): void {
-    if (this.ambientSource) {
-      try {
-        (this.ambientSource as AudioBufferSourceNode).stop();
-      } catch {
-        // Ignore
-      }
-      this.ambientSource = null;
-    }
-  }
 }
 
 export const soundManager = new SoundEffects();
+

@@ -25,6 +25,7 @@ interface NotesViewProps {
   onUpdateNote: (id: string, updates: Partial<Note>) => Promise<void>;
   onDeleteNote: (id: string) => Promise<void>;
   onBackToHome?: () => void;
+  initialSelectedNoteId?: string | null;
 }
 
 export const NotesView: React.FC<NotesViewProps> = ({
@@ -34,11 +35,19 @@ export const NotesView: React.FC<NotesViewProps> = ({
   onUpdateNote,
   onDeleteNote,
   onBackToHome,
+  initialSelectedNoteId,
 }) => {
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(initialSelectedNoteId || null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'oldest' | 'alphabetical'>('recent');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Sync when initialSelectedNoteId prop changes
+  useEffect(() => {
+    if (initialSelectedNoteId) {
+      setSelectedNoteId(initialSelectedNoteId);
+    }
+  }, [initialSelectedNoteId]);
 
   // Active Note Editor Form State
   const [titleInput, setTitleInput] = useState('');

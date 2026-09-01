@@ -164,4 +164,32 @@ export const THEME_COLORS: Record<NinoThemeColor, {
     gradient: 'from-cyan-500 to-blue-400',
     badgeBg: 'bg-cyan-500',
   },
+  orange: {
+    name: 'Laranja Solar',
+    primary: '#EA580C',
+    glow: 'rgba(234, 88, 12, 0.45)',
+    gradient: 'from-orange-500 to-amber-400',
+    badgeBg: 'bg-orange-600',
+  },
+  red: {
+    name: 'Vermelho Estelar',
+    primary: '#DC2626',
+    glow: 'rgba(220, 38, 38, 0.45)',
+    gradient: 'from-red-500 to-rose-400',
+    badgeBg: 'bg-red-600',
+  },
+  silver: {
+    name: 'Prata Lunar',
+    primary: '#94A3B8',
+    glow: 'rgba(148, 163, 184, 0.45)',
+    gradient: 'from-slate-400 to-slate-200',
+    badgeBg: 'bg-slate-500',
+  },
+  rainbow: {
+    name: 'Arco-Íris Cósmico',
+    primary: '#8B5CF6',
+    glow: 'rgba(139, 92, 246, 0.5)',
+    gradient: 'from-rose-400 via-amber-400 via-emerald-400 to-sky-400',
+    badgeBg: 'bg-indigo-600',
+  },
 };

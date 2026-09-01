@@ -54,9 +54,43 @@ export type NinoExpression =
   | 'proud'
   | 'neutral';
 
-export type NinoThemeColor = 'indigo' | 'emerald' | 'amber' | 'rose' | 'violet' | 'cyan';
+export type NinoThemeColor = 
+  | 'indigo' 
+  | 'emerald' 
+  | 'amber' 
+  | 'rose' 
+  | 'violet' 
+  | 'cyan'
+  | 'orange'
+  | 'red'
+  | 'silver'
+  | 'rainbow';
 
 export type PolarisStage = 'baby' | 'young' | 'guardian' | 'master';
+
+export type ItemRarity = 'common' | 'rare' | 'epic' | 'legendary';
+
+export interface PolarisColorItem {
+  id: NinoThemeColor;
+  name: string;
+  description: string;
+  icon: string;
+  previewColor: string;
+  gradientBg: string;
+  minLevel: number;
+  stardustCost: number;
+  rarity: ItemRarity;
+}
+
+export interface PolarisOutfit {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  minLevel: number;
+  stardustCost: number;
+  rarity: ItemRarity;
+}
 
 export interface PolarisAccessory {
   id: string;
@@ -65,7 +99,7 @@ export interface PolarisAccessory {
   icon: string;
   minLevel: number;
   stardustCost: number;
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  rarity: ItemRarity;
 }
 
 export interface PolarisAura {
@@ -75,7 +109,7 @@ export interface PolarisAura {
   icon?: string;
   minLevel: number;
   stardustCost: number;
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  rarity: ItemRarity;
   glowColor: string;
 }
 
@@ -88,6 +122,8 @@ export interface PolarisEvolution {
   affinity: number; // 0 to 100 afeto
   equippedAccessory: string; // 'none' | accessory id
   equippedAura: string; // 'none' | aura id
+  equippedOutfit?: string; // 'none' | outfit id
+  equippedColor?: NinoThemeColor; // preferred theme color
   unlockedItems: string[];
   claimedMissions: string[]; // IDs of missions claimed today
   lastFedDate?: string;
@@ -125,6 +161,9 @@ export interface UserPreferences {
   soundEffectsEnabled: boolean;
   browserNotificationsEnabled: boolean;
   dailyGoal: number; // e.g. 5 tasks per day
+  taskRemindersEnabled?: boolean; // Lembretes de tarefas
+  overdueAlertsEnabled?: boolean; // Tarefas atrasadas
+  advanceRemindersEnabled?: boolean; // Lembretes antes do horário
 }
 
 export interface UserProfile {

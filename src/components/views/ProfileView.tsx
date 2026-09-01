@@ -647,36 +647,109 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           )}
         </div>
 
-        {/* Lembretes de Tarefas e Notificações In-App */}
+        {/* Lembretes de Tarefas, Tarefas Atrasadas e Avisos Antecipados */}
         <div className="space-y-3 pt-2">
-          <div className="p-4 rounded-2xl border border-orange-100/80 dark:border-amber-950/60 flex items-center justify-between">
+          {/* 1. Lembretes de tarefas */}
+          <div className="p-4 rounded-2xl border border-orange-100/80 dark:border-amber-950/60 flex items-center justify-between gap-3">
             <div>
               <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block">
-                Lembretes de Tarefas Agendadas
+                🔔 Lembretes de tarefas
               </span>
               <span className="text-[11px] text-slate-400">
-                Disparar lembretes (5m, 15m, 30m antes) conforme configurado nas tarefas
+                Ativar notificações e alertas das atividades registradas
               </span>
             </div>
 
             <button
               type="button"
               onClick={() => {
-                const nextVal = !user.preferences.browserNotificationsEnabled;
+                const current = user.preferences.taskRemindersEnabled ?? true;
                 onUpdateUser({
                   ...user,
                   preferences: {
                     ...user.preferences,
-                    browserNotificationsEnabled: nextVal,
+                    taskRemindersEnabled: !current,
+                    browserNotificationsEnabled: !current,
                   },
                 });
                 soundManager.playPop();
               }}
-              className={`p-2 rounded-xl transition-colors ${
-                user.preferences.browserNotificationsEnabled
+              className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                (user.preferences.taskRemindersEnabled ?? true)
                   ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
               }`}
+              aria-label="Alternar lembretes de tarefas"
+            >
+              <Check className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* 2. Tarefas atrasadas */}
+          <div className="p-4 rounded-2xl border border-rose-100/80 dark:border-rose-950/60 bg-rose-50/20 dark:bg-rose-950/10 flex items-center justify-between gap-3">
+            <div>
+              <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block flex items-center gap-1.5">
+                <span>⚠️ Tarefas atrasadas</span>
+              </span>
+              <span className="text-[11px] text-slate-400">
+                Avisar quando uma tarefa ultrapassar a data ou horário sem conclusão
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const current = user.preferences.overdueAlertsEnabled ?? true;
+                onUpdateUser({
+                  ...user,
+                  preferences: {
+                    ...user.preferences,
+                    overdueAlertsEnabled: !current,
+                  },
+                });
+                soundManager.playPop();
+              }}
+              className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                (user.preferences.overdueAlertsEnabled ?? true)
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+              }`}
+              aria-label="Alternar alertas de tarefas atrasadas"
+            >
+              <Check className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* 3. Lembretes antes do horário */}
+          <div className="p-4 rounded-2xl border border-orange-100/80 dark:border-amber-950/60 flex items-center justify-between gap-3">
+            <div>
+              <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block">
+                ⏰ Lembretes antes do horário
+              </span>
+              <span className="text-[11px] text-slate-400">
+                Notificar com antecedência (15 min, 30 min, 1 hora antes)
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const current = user.preferences.advanceRemindersEnabled ?? true;
+                onUpdateUser({
+                  ...user,
+                  preferences: {
+                    ...user.preferences,
+                    advanceRemindersEnabled: !current,
+                  },
+                });
+                soundManager.playPop();
+              }}
+              className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                (user.preferences.advanceRemindersEnabled ?? true)
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+              }`}
+              aria-label="Alternar lembretes antes do horário"
             >
               <Check className="w-5 h-5" />
             </button>

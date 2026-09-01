@@ -87,6 +87,7 @@ export const PolarisLevelUpModal: React.FC<PolarisLevelUpModalProps> = ({
               size="xl"
               stage={event.newStage}
               accessory={user.polaris.equippedAccessory}
+              outfit={user.polaris.equippedOutfit || 'none'}
               aura={user.polaris.equippedAura}
               interactive={false}
             />

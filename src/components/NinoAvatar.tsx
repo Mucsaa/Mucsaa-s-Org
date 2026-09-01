@@ -11,6 +11,7 @@ export interface NinoAvatarProps {
   interactive?: boolean;
   stage?: PolarisStage;
   accessory?: string;
+  outfit?: string;
   aura?: string;
   completedTasksCount?: number;
   totalTasksCount?: number;
@@ -26,6 +27,7 @@ export const NinoAvatar: React.FC<NinoAvatarProps> = ({
   interactive = true,
   stage = 'baby',
   accessory = 'none',
+  outfit = 'none',
   aura = 'none',
   completedTasksCount = 0,
   totalTasksCount = 0,
@@ -572,7 +574,120 @@ export const NinoAvatar: React.FC<NinoAvatarProps> = ({
             )}
           </g>
 
-          {/* 10. Equipped Accessories on Star Geometry */}
+          {/* 10. Equipped Outfits & Scarves */}
+          {outfit === 'scarf_red' && (
+            <g id="outfit-scarf-red">
+              {/* Wrapped Red Scarf */}
+              <path
+                d="M 36 62 Q 60 70 84 62 Q 88 74 60 76 Q 32 74 36 62 Z"
+                fill="#DC2626"
+                stroke="#B91C1C"
+                strokeWidth="1.2"
+              />
+              {/* Hanging Scarf Tail with Gold Fringe */}
+              <path
+                d="M 64 73 L 68 92 L 77 90 L 73 72 Z"
+                fill="#EF4444"
+                stroke="#B91C1C"
+                strokeWidth="1.2"
+              />
+              <line x1="68" y1="91" x2="77" y2="89" stroke="#FDE047" strokeWidth="2" />
+            </g>
+          )}
+
+          {outfit === 'scarf_galaxy' && (
+            <g id="outfit-scarf-galaxy">
+              {/* Cosmic Galaxy Scarf */}
+              <path
+                d="M 35 62 Q 60 71 85 62 Q 89 75 60 77 Q 31 75 35 62 Z"
+                fill="#4338CA"
+                stroke="#818CF8"
+                strokeWidth="1.2"
+              />
+              {/* Hanging Scarf Tail with Star sparkles */}
+              <path
+                d="M 63 74 L 67 93 L 78 91 L 73 73 Z"
+                fill="#3730A3"
+                stroke="#818CF8"
+                strokeWidth="1.2"
+              />
+              <circle cx="70" cy="82" r="1.2" fill="#FDE047" />
+              <circle cx="74" cy="87" r="1" fill="#38BDF8" />
+              <circle cx="48" cy="69" r="1.2" fill="#FFFFFF" />
+              <circle cx="62" cy="71" r="1.2" fill="#FDE047" />
+            </g>
+          )}
+
+          {outfit === 'cape_hero' && (
+            <g id="outfit-cape-hero">
+              {/* Fluttering Heroic Cape */}
+              <path
+                d="M 32 64 Q 18 90 24 104 Q 60 98 96 104 Q 102 90 88 64 Q 60 74 32 64 Z"
+                fill="#DC2626"
+                stroke="#991B1B"
+                strokeWidth="1.5"
+                opacity="0.9"
+              />
+              {/* Golden Clasp Brooch */}
+              <circle cx="60" cy="67" r="4.5" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />
+              <circle cx="60" cy="67" r="2" fill="#FEF08A" />
+            </g>
+          )}
+
+          {outfit === 'robe_wizard' && (
+            <g id="outfit-robe-wizard">
+              {/* Wizard Robe / Mantle */}
+              <path
+                d="M 32 63 Q 60 72 88 63 L 93 96 Q 60 88 27 96 Z"
+                fill="#312E81"
+                stroke="#6366F1"
+                strokeWidth="1.4"
+              />
+              {/* Golden Rune Trim */}
+              <path
+                d="M 58 68 L 58 92"
+                stroke="#FCD34D"
+                strokeWidth="1.5"
+                strokeDasharray="2,2"
+              />
+              {/* Sapphire Core Clasp */}
+              <polygon points="60,65 64,68 60,71 56,68" fill="#38BDF8" stroke="#0284C7" strokeWidth="0.8" />
+            </g>
+          )}
+
+          {outfit === 'kimono_ninja' && (
+            <g id="outfit-kimono-ninja">
+              {/* Shinobi Gi and Sash */}
+              <path
+                d="M 34 62 L 60 78 L 86 62 L 82 86 L 38 86 Z"
+                fill="#1E293B"
+                stroke="#475569"
+                strokeWidth="1.2"
+              />
+              {/* Red Ninja Belt */}
+              <rect x="36" y="80" width="48" height="6" rx="1.5" fill="#EF4444" stroke="#DC2626" strokeWidth="0.8" />
+              <polygon points="60,79 63,83 60,87 57,83" fill="#FCD34D" />
+            </g>
+          )}
+
+          {outfit === 'armor_guardian' && (
+            <g id="outfit-armor-guardian">
+              {/* Golden Paladin Breastplate */}
+              <path
+                d="M 35 63 Q 60 70 85 63 L 80 88 Q 60 96 40 88 Z"
+                fill="#F59E0B"
+                stroke="#B45309"
+                strokeWidth="1.5"
+              />
+              {/* Center Diamond Power Gem */}
+              <polygon points="60,68 66,74 60,80 54,74" fill="#38BDF8" stroke="#FFFFFF" strokeWidth="1.2" />
+              <circle cx="60" cy="74" r="1.5" fill="#FFFFFF" />
+              <line x1="42" y1="72" x2="52" y2="72" stroke="#FEF08A" strokeWidth="1.2" />
+              <line x1="68" y1="72" x2="78" y2="72" stroke="#FEF08A" strokeWidth="1.2" />
+            </g>
+          )}
+
+          {/* 11. Equipped Accessories on Star Geometry */}
           {accessory === 'star_pin' && (
             <g id="acc-star-pin">
               <polygon points="60,66 62,71 67,71 63,74 65,79 60,76 55,79 57,74 53,71 58,71" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />

@@ -42,6 +42,7 @@ import {
 import { CATEGORIES, THEME_COLORS } from '../../utils/constants';
 import { CategoryIcon } from '../CategoryIcon';
 import { getLevelProgress, STAGE_CONFIGS } from '../../utils/rewards';
+import { OverdueAlertBanner } from '../OverdueAlertBanner';
 
 interface HomeViewProps {
   user: UserProfile;
@@ -184,6 +185,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               size="lg"
               stage={user.polaris?.stage || 'baby'}
               accessory={user.polaris?.equippedAccessory || 'none'}
+              outfit={user.polaris?.equippedOutfit || 'none'}
               aura={user.polaris?.equippedAura || 'none'}
               completedTasksCount={completedCount}
               totalTasksCount={totalCount}
@@ -312,6 +314,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
           })}
         </div>
       </section>
+
+      {/* Real Overdue Tasks Alert Banner */}
+      <OverdueAlertBanner
+        tasks={tasks}
+        onToggleTaskComplete={onToggleTaskComplete}
+        onEditTask={onEditTask}
+        onPostponeTask={onPostponeTask}
+      />
 
       {/* Progress & Next Appointment Grid */}
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">

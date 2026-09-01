@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Zap,
   FileText,
+  Search,
 } from 'lucide-react';
 import { ActiveTab, UserProfile } from '../types';
 import { THEME_COLORS } from '../utils/constants';
@@ -22,6 +23,7 @@ interface NavbarProps {
   activeTab: ActiveTab;
   onStartFocus?: () => void;
   onOpenSanctuary?: () => void;
+  onOpenSearch?: () => void;
   notesCount?: number;
 }
 
@@ -35,6 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   onStartFocus,
   onOpenSanctuary,
+  onOpenSearch,
   notesCount = 0,
 }) => {
   const [timeStr, setTimeStr] = useState('');
@@ -118,8 +121,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* Right Actions: Focus Mode, Theme Toggle, Notifications, Profile Avatar */}
+        {/* Right Actions: Global Search, Focus Mode, Notes, Theme, Notifications, Profile */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {/* Global Search Button (Lupa) */}
+          {onOpenSearch && (
+            <button
+              type="button"
+              onClick={onOpenSearch}
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl sm:rounded-2xl bg-orange-50/90 dark:bg-amber-950/50 hover:bg-orange-100 dark:hover:bg-amber-900/60 text-slate-700 dark:text-slate-200 border border-orange-200/70 dark:border-amber-900/50 text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer group"
+              title="Pesquisar tarefas e notas (Ctrl+K)"
+              aria-label="Pesquisar tarefas e notas"
+            >
+              <Search className="w-3.5 h-3.5 text-orange-500 group-hover:scale-110 transition-transform" />
+              <span className="hidden md:inline">Buscar</span>
+              <kbd className="hidden lg:inline-block px-1 py-0.2 text-[9px] font-bold text-slate-400 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
+                ⌘K
+              </kbd>
+            </button>
+          )}
+
           {/* Quick Focus Mode Button */}
           {onStartFocus && (
             <button
@@ -159,7 +179,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onToggleTheme}
-            className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-orange-50/80 dark:hover:bg-amber-950/40 transition-colors"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-orange-50/80 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
             title={isDark ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
             aria-label="Alternar tema"
           >
@@ -171,7 +191,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={onOpenNotifications}
-              className="relative p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-orange-50/80 dark:hover:bg-amber-950/40 transition-colors"
+              className="relative p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-orange-50/80 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
               title="Notificações e Avisos do Polaris"
             >
               <Bell className="w-4 h-4" />
@@ -185,7 +205,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => onTabSelect('profile')}
-            className={`flex items-center gap-1.5 p-1 sm:pl-2 sm:pr-3 sm:py-1.5 rounded-xl sm:rounded-2xl border transition-all ${
+            className={`flex items-center gap-1.5 p-1 sm:pl-2 sm:pr-3 sm:py-1.5 rounded-xl sm:rounded-2xl border transition-all cursor-pointer ${
               activeTab === 'profile'
                 ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 font-semibold'
                 : 'border-orange-100 dark:border-amber-950/60 hover:border-orange-200 text-slate-700 dark:text-slate-200 bg-white/70 dark:bg-[#1D1A16]/70'
@@ -201,3 +221,4 @@ export const Navbar: React.FC<NavbarProps> = ({
     </header>
   );
 };
+

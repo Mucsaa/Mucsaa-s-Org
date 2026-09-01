@@ -1,6 +1,8 @@
 import {
   PolarisStage,
   PolarisEvolution,
+  PolarisColorItem,
+  PolarisOutfit,
   PolarisAccessory,
   PolarisAura,
   DailyMission,
@@ -133,7 +135,188 @@ export const STAGE_CONFIGS: Record<
   },
 };
 
-// Accessories Catalog
+// 1. STAR COLORS CATALOG (Cores da Estrela)
+export const POLARIS_COLORS: PolarisColorItem[] = [
+  {
+    id: 'amber',
+    name: 'Dourado Solar',
+    description: 'A luz pura e original que ilumina todas as suas conquistas diárias.',
+    icon: '💛',
+    previewColor: '#F59E0B',
+    gradientBg: 'from-amber-400 to-yellow-500',
+    minLevel: 1,
+    stardustCost: 0,
+    rarity: 'common',
+  },
+  {
+    id: 'indigo',
+    name: 'Índigo Cósmico',
+    description: 'Profundidade sideral e harmonia das constelações noturnas.',
+    icon: '🌌',
+    previewColor: '#4F46E5',
+    gradientBg: 'from-indigo-500 to-blue-700',
+    minLevel: 1,
+    stardustCost: 0,
+    rarity: 'common',
+  },
+  {
+    id: 'emerald',
+    name: 'Esmeralda',
+    description: 'Energia vital de renovação, cura e foco equilibrado.',
+    icon: '💚',
+    previewColor: '#10B981',
+    gradientBg: 'from-emerald-400 to-teal-600',
+    minLevel: 2,
+    stardustCost: 50,
+    rarity: 'common',
+  },
+  {
+    id: 'violet',
+    name: 'Violeta Místico',
+    description: 'Sabedoria astral, foco profundo e hiperconcentração mental.',
+    icon: '💜',
+    previewColor: '#8B5CF6',
+    gradientBg: 'from-purple-500 to-indigo-600',
+    minLevel: 3,
+    stardustCost: 80,
+    rarity: 'rare',
+  },
+  {
+    id: 'rose',
+    name: 'Rosa Cósmico',
+    description: 'Afeto caloroso, ternura e entusiasmo para a rotina diária.',
+    icon: '🌸',
+    previewColor: '#F43F5E',
+    gradientBg: 'from-rose-400 to-pink-600',
+    minLevel: 4,
+    stardustCost: 100,
+    rarity: 'rare',
+  },
+  {
+    id: 'orange',
+    name: 'Laranja Solar',
+    description: 'Chamas radiantes de motivação para momentos de alta produtividade.',
+    icon: '☀️',
+    previewColor: '#F97316',
+    gradientBg: 'from-amber-400 to-orange-600',
+    minLevel: 5,
+    stardustCost: 120,
+    rarity: 'rare',
+  },
+  {
+    id: 'cyan',
+    name: 'Azul Nebulosa',
+    description: 'Claridade mental pura e serenidade de águas celestiais.',
+    icon: '💙',
+    previewColor: '#06B6D4',
+    gradientBg: 'from-cyan-400 to-blue-600',
+    minLevel: 6,
+    stardustCost: 150,
+    rarity: 'rare',
+  },
+  {
+    id: 'red',
+    name: 'Vermelho Estelar',
+    description: 'Energia titânica e explosão de foco estilo supernova.',
+    icon: '❤️',
+    previewColor: '#EF4444',
+    gradientBg: 'from-red-500 to-rose-700',
+    minLevel: 8,
+    stardustCost: 200,
+    rarity: 'epic',
+  },
+  {
+    id: 'silver',
+    name: 'Prata Lunar',
+    description: 'Brilho acetinado nobre das luas cheias e noites tranquilas.',
+    icon: '🤍',
+    previewColor: '#94A3B8',
+    gradientBg: 'from-slate-200 via-slate-400 to-slate-600',
+    minLevel: 10,
+    stardustCost: 280,
+    rarity: 'epic',
+  },
+  {
+    id: 'rainbow',
+    name: 'Arco-Íris Cósmico',
+    description: 'O prisma supremo unindo todos os comprimentos de onda estelares.',
+    icon: '🌈',
+    previewColor: '#EC4899',
+    gradientBg: 'from-pink-500 via-yellow-400 via-emerald-400 to-indigo-500',
+    minLevel: 13,
+    stardustCost: 400,
+    rarity: 'legendary',
+  },
+];
+
+// 2. SCARVES & OUTFITS CATALOG (Cachecóis & Roupinhas)
+export const POLARIS_OUTFITS: PolarisOutfit[] = [
+  {
+    id: 'none',
+    name: 'Natural',
+    description: 'Sem roupinha adicional, corpo estelar livre e natural.',
+    icon: '✨',
+    minLevel: 1,
+    stardustCost: 0,
+    rarity: 'common',
+  },
+  {
+    id: 'scarf_red',
+    name: 'Cachecol Vermelho Quentinho',
+    description: 'Tricotado com carinho pelas constelações para aquecer o coração.',
+    icon: '🧣',
+    minLevel: 1,
+    stardustCost: 0,
+    rarity: 'common',
+  },
+  {
+    id: 'scarf_galaxy',
+    name: 'Cachecol Galáctico Estrelado',
+    description: 'Tecido com poeira de nebulosas e microestrelas cintilantes.',
+    icon: '🌌',
+    minLevel: 2,
+    stardustCost: 60,
+    rarity: 'common',
+  },
+  {
+    id: 'cape_hero',
+    name: 'Capinha de Herói Estelar',
+    description: 'Flutua com o vento da coragem quando você vence prazos difíceis.',
+    icon: '🦸‍♂️',
+    minLevel: 4,
+    stardustCost: 120,
+    rarity: 'rare',
+  },
+  {
+    id: 'robe_wizard',
+    name: 'Manto do Mago Estelar',
+    description: 'Encantado com runas de concentração e foco ininterrupto.',
+    icon: '🧙',
+    minLevel: 7,
+    stardustCost: 190,
+    rarity: 'rare',
+  },
+  {
+    id: 'kimono_ninja',
+    name: 'Quimono Ninja Astral',
+    description: 'Leve, silencioso e preciso para tarefas executadas com maestria.',
+    icon: '🥋',
+    minLevel: 10,
+    stardustCost: 260,
+    rarity: 'epic',
+  },
+  {
+    id: 'armor_guardian',
+    name: 'Armadura Dourada de Guardião',
+    description: 'Forjada em ouro solar estelar para proteger contra qualquer distração.',
+    icon: '🛡️',
+    minLevel: 14,
+    stardustCost: 380,
+    rarity: 'legendary',
+  },
+];
+
+// 3. ACCESSORIES CATALOG (Acessórios de Cabeça / Rosto)
 export const POLARIS_ACCESSORIES: PolarisAccessory[] = [
   {
     id: 'none',
@@ -209,7 +392,7 @@ export const POLARIS_ACCESSORIES: PolarisAccessory[] = [
   },
 ];
 
-// Auras Catalog
+// 4. AURAS CATALOG (Auras & Efeitos Cósmicos)
 export const POLARIS_AURAS: PolarisAura[] = [
   {
     id: 'none',
@@ -273,7 +456,7 @@ export const POLARIS_AURAS: PolarisAura[] = [
   },
 ];
 
-// Default initial Polaris state (starts completely clean from zero at Level 1)
+// Default initial Polaris state (starts clean from Level 1 with starter items unlocked)
 export const DEFAULT_POLARIS: PolarisEvolution = {
   xp: 0,
   level: 1,
@@ -283,7 +466,9 @@ export const DEFAULT_POLARIS: PolarisEvolution = {
   affinity: 0,
   equippedAccessory: 'none',
   equippedAura: 'none',
-  unlockedItems: ['none'],
+  equippedOutfit: 'none',
+  equippedColor: 'amber',
+  unlockedItems: ['none', 'amber', 'indigo', 'star_pin', 'sparkles', 'scarf_red'],
   claimedMissions: [],
   totalCareCount: 0,
   lastFedDate: undefined,
@@ -379,10 +564,10 @@ export function addPolarisXP(
 
   const newlyUnlocked: string[] = [];
   if (didLevelUp) {
-    // Check if new items became unlockable
-    POLARIS_ACCESSORIES.forEach((acc) => {
-      if (acc.minLevel <= newProg.level && !currentPolaris.unlockedItems.includes(acc.id) && acc.stardustCost === 0) {
-        newlyUnlocked.push(acc.id);
+    // Check if new free items became unlockable with new level
+    [...POLARIS_ACCESSORIES, ...POLARIS_OUTFITS, ...POLARIS_COLORS, ...POLARIS_AURAS].forEach((item) => {
+      if (item.minLevel <= newProg.level && item.stardustCost === 0 && !currentPolaris.unlockedItems.includes(item.id)) {
+        newlyUnlocked.push(item.id);
       }
     });
 
